@@ -151,12 +151,14 @@ Scored with the official `evaluate.py` against our own labels (built with `websi
 | First labelled run | 0.265 |
 | red_light only from signal heads that face the camera; pedestrian head dropped (it shows WALK while the queue flows); congestion = the whole direction at a standstill; stopped_vehicle outside the signal queue; jaywalking needs walking | 0.390 |
 | No conflicts between tiny far-away road users; obstacles must stay clear of all detected road users | 0.502 |
-| stopped_vehicle needs 15 s (10–14 s stops were cars yielding before a turn) | **0.549** |
+| stopped_vehicle needs 15 s (10–14 s stops were cars yielding before a turn) | 0.549 |
+| Review with the annotator (5 yes/no questions): a U-turn must be one continuous manoeuvre — the "U-turn" of the white truck was an identity switch during a 10 s standstill; the car's U-turn was confirmed and added to the labels | 0.692 |
 
 Per class at the end: congestion, stop_line, stopped_vehicle 1.00; red_light 0.40; jaywalking 0.44;
-failure_to_yield 0 (3 FP, 1 missed); illegal_u_turn 0 (2 predictions, not labelled — the white truck does turn
-back around the median tip, so this is being checked). One clip and one annotator: these thresholds are a first
-calibration, not a validated result.
+failure_to_yield 0 (the labelled one is at the bottom frame edge and is missed; at least one of our 3 predictions
+is real but was not localised). The confirmed U-turn's boundaries come from our own detection, so its 1.00 is partly
+circular: without that class the score is about 0.64. One clip and one annotator — a first calibration, not a
+validated result. Labels and review notes: `data/dev/`.
 
 ## Determinism
 

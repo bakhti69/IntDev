@@ -21,6 +21,7 @@ UT_MIN_TURN = np.deg2rad(150)
 UT_MIN_PATH = 2.5           # body lengths driven during the turn
 UT_MIN_EXCURSION = 1.0      # body lengths away from where the turn starts
 UT_MIN_SPEED = 0.5          # heading only counts while really moving
+UT_MAX_PAUSE = 3.0          # s without moving inside the turn
 # stopped_vehicle
 SV_MAX_SPEED = 0.12
 SV_MIN_DURATION = 15.0      # definition says 10 s; 10-14 s stops in the junction were cars yielding before a turn
@@ -62,6 +63,9 @@ def _u_turn_span(tr: TrackData, t: np.ndarray, th: np.ndarray, idx: np.ndarray) 
             lo += 1
         a = lo + int(np.argmax(np.abs(th[lo:j + 1] - th[j])))
         if abs(th[j] - th[a]) < UT_MIN_TURN:
+            continue
+        # one continuous manoeuvre: a long standstill inside it is usually an identity switch
+        if j > a and float(np.max(np.diff(t[a:j + 1]))) > UT_MAX_PAUSE:
             continue
         # driven arc: moving samples only, and the vehicle really goes out and comes back
         moving = tr.pos[idx[a:j + 1]]
