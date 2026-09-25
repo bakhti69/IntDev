@@ -39,13 +39,6 @@ def _timeline(duration, state):
     return SignalTimeline(times, np.full(len(times), STATES.index(state)))
 
 
-def test_red_light_from_walk_signal():
-    """Nobody queues, but the crosswalk in front shows WALK: crossing is a violation."""
-    car = make_track(1, "car", *path(10, 14, (330, 300), (900, 640)))
-    an = make_analysis([car], signals={"left_pole": _timeline(60, "green")})
-    assert [e[2] for e in detect(an)].count("red_light") == 1
-
-
 def test_red_light_up_approach_vehicle_head():
     car = make_track(1, "car", *path(5, 9, (1300, 700), (1000, 330)))
     red = make_analysis([car], signals={"median_pole": _timeline(60, "red")})

@@ -142,6 +142,22 @@ Diagnosis and fixes:
 
 Result on the same clip: 10 events instead of 19, no accidents, alarm share 49 % → 1.8 %.
 
+### Dev set: first labelled sample clip (67 s, 8 labelled events)
+
+Scored with the official `evaluate.py` against our own labels (built with `website/labeler.html`):
+
+| Step | Score A |
+|---|---|
+| First labelled run | 0.265 |
+| red_light only from signal heads that face the camera; pedestrian head dropped (it shows WALK while the queue flows); congestion = the whole direction at a standstill; stopped_vehicle outside the signal queue; jaywalking needs walking | 0.390 |
+| No conflicts between tiny far-away road users; obstacles must stay clear of all detected road users | 0.502 |
+| stopped_vehicle needs 15 s (10–14 s stops were cars yielding before a turn) | **0.549** |
+
+Per class at the end: congestion, stop_line, stopped_vehicle 1.00; red_light 0.40; jaywalking 0.44;
+failure_to_yield 0 (3 FP, 1 missed); illegal_u_turn 0 (2 predictions, not labelled — the white truck does turn
+back around the median tip, so this is being checked). One clip and one annotator: these thresholds are a first
+calibration, not a validated result.
+
 ## Determinism
 
 Seeds are fixed (`random`, NumPy, OpenCV RANSAC, PyTorch; cuDNN deterministic, benchmark off). Two runs of the

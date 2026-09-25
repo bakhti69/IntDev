@@ -16,6 +16,7 @@ from .common import Event, vehicle_tracks
 from .pedestrians import pedestrians
 
 CANDIDATE_DIST = 2.0        # pairs ever closer than this (normalised) are examined
+CONFLICT_MIN_SIZE = 0.03    # of the frame width: far-away road users are too small to judge contact
 APPROACH_DIST = 1.5         # ... and must have been at least this far apart just before
 # accident
 ACC_CONTACT_DIST = 0.8
@@ -63,7 +64,8 @@ def pair_series(a: TrackData, b: TrackData) -> PairSeries | None:
 
 
 def candidate_pairs(an: Analysis) -> list[PairSeries]:
-    users = vehicle_tracks(an) + pedestrians(an)
+    min_size = CONFLICT_MIN_SIZE * an.info.width
+    users = [u for u in vehicle_tracks(an) + pedestrians(an) if float(np.median(u.size)) >= min_size]
     by_time: dict[float, list[tuple[int, int]]] = {}
     for u, tr in enumerate(users):
         for k, t in enumerate(tr.t):
