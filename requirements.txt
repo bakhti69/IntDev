@@ -1,0 +1,9 @@
+# Runtime (solution.py / run_submission.py). Versions are the ones the
+# submission was built and tested with. torch comes in through ultralytics;
+# on Linux the default PyPI wheel includes CUDA.
+numpy==2.4.6
+opencv-python-headless==5.0.0.93
+scipy==1.17.1
+ultralytics==8.4.163
+torch==2.14.0
+torchvision==0.29.0

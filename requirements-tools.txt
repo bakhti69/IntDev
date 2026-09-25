@@ -1,0 +1,6 @@
+# Website data builder, annotated renders, live demo and tests (not needed for scoring).
+-r requirements.txt
+imageio-ffmpeg==0.6.0
+gradio>=5.0
+pytest>=8.0
+ruff>=0.6
