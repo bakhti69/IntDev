@@ -71,6 +71,12 @@ class TrackData:
     speed: np.ndarray    # (n,) body sizes / s
     accel: np.ndarray    # (n,) d(speed)/dt, body sizes / s^2
     heading: np.ndarray  # (n,) radians, atan2(vy, vx); nan when not moving
+    at_edge: np.ndarray | None = None  # (n,) box touches the frame border (cut off: shape unreliable)
+
+    @property
+    def in_frame(self) -> np.ndarray:
+        """Samples whose box is fully inside the frame."""
+        return ~self.at_edge if self.at_edge is not None else np.ones(len(self.t), bool)
 
     @property
     def is_vehicle(self) -> bool:
@@ -92,7 +98,13 @@ class TrackData:
         return int(np.clip(np.searchsorted(self.t, t), 0, len(self.t) - 1))
 
 
-def finalize(h: TrackHistory, pos_sigma: float = 0.25, vel_window: float = 0.4) -> TrackData:
+def edge_mask(boxes: np.ndarray, width: int, height: int, margin_frac: float = 0.01) -> np.ndarray:
+    m = margin_frac * width
+    return (boxes[:, 0] <= m) | (boxes[:, 1] <= m) | (boxes[:, 2] >= width - m) | (boxes[:, 3] >= height - m)
+
+
+def finalize(h: TrackHistory, frame_size: tuple[int, int] | None = None,
+             pos_sigma: float = 0.25, vel_window: float = 0.4) -> TrackData:
     t = np.asarray(h.t, np.float64)
     boxes = np.stack(h.boxes).astype(np.float64)
     ground = np.stack([(boxes[:, 0] + boxes[:, 2]) / 2, boxes[:, 3]], axis=1)
@@ -104,8 +116,9 @@ def finalize(h: TrackHistory, pos_sigma: float = 0.25, vel_window: float = 0.4) 
     accel = derivative(t, gaussian_smooth(t, speed, 0.2), 0.3)
     heading = np.arctan2(vel[:, 1], vel[:, 0])
     heading[speed < 0.15] = np.nan
+    at_edge = edge_mask(boxes, *frame_size) if frame_size else None
     return TrackData(id=h.id, category=h.votes.most_common(1)[0][0], t=t, boxes=boxes.astype(np.float32),
-                     pos=pos, size=size, vel=vel, speed=speed, accel=accel, heading=heading)
+                     pos=pos, size=size, vel=vel, speed=speed, accel=accel, heading=heading, at_edge=at_edge)
 
 
 def angle_diff(a: np.ndarray | float, b: np.ndarray | float) -> np.ndarray | float:
