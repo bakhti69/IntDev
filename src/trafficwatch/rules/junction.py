@@ -31,8 +31,8 @@ STL_MIN_DURATION = 2.0
 # congestion: direction -> (zones, min vehicles, slow speed, min slow fraction, min duration s).
 # A red phase stops the approach while the junction keeps flowing; a jam stops all of it.
 CONGESTION = {
-    "towards_camera": (("approach_down", "junction_box", "intersection"), 8, 0.3, 0.75, 20.0),
-    "away": (("upper",), 5, 0.3, 0.8, 20.0),
+    "towards_camera": (("approach_down", "junction_box", "intersection"), 8, 0.3, 0.75, 30.0),
+    "away": (("upper",), 5, 0.3, 0.8, 30.0),
 }
 
 

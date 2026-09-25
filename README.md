@@ -157,7 +157,10 @@ Scored with the official `evaluate.py` against our own labels (built with `websi
 Per class at the end: congestion, stop_line, stopped_vehicle 1.00; red_light 0.40; jaywalking 0.44;
 failure_to_yield 0 (the labelled one is at the bottom frame edge and is missed; at least one of our 3 predictions
 is real but was not localised). The confirmed U-turn's boundaries come from our own detection, so its 1.00 is partly
-circular: without that class the score is about 0.64. One clip and one annotator — a first calibration, not a
+circular: without that class the score is about 0.64. A second video (C3897, 5:18) was reviewed detection by detection (yes/no answers,
+`data/dev/review_C3897.md`): border-cut boxes faking U-turns, far-away near-misses, kerbside "stopped vehicles",
+pedestrians too far away for failure-to-yield and scooter riders counted as jaywalkers were fixed — 68 → 36 events on
+that video, and Score A 0.705 on the labelled clip. One clip and one annotator — a first calibration, not a
 validated result. Labels and review notes: `data/dev/`.
 
 ## Determinism

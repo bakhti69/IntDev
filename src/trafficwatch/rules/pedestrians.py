@@ -10,11 +10,12 @@ from .common import Event, inside, vehicle_tracks
 
 JW_MIN_DURATION = 1.0        # s on the carriageway
 JW_MIN_SPEED = 0.4           # body sizes / s: walking, not waiting at the kerb
+JW_MAX_SPEED = 1.6           # faster "pedestrians" ride a scooter or bike the detector missed
 JW_ROAD_MARGIN = 0.25        # fraction of person height the feet must be inside the road
 CW_MARGIN = 0.35             # crosswalk tolerance, fraction of person height
 FY_MIN_SPEED = 1.0           # vehicle drives through (not creeping in a jam), body sizes / s
 FY_PED_SPEED = 0.5           # the pedestrian is crossing, not waiting at the edge
-FY_REACH = 2.5               # pedestrian within this many vehicle sizes of the vehicle
+FY_REACH = 1.5               # pedestrian in the vehicle's path: within this many vehicle sizes
 RIDER_OVERLAP = 0.3
 
 
@@ -68,7 +69,7 @@ def jaywalking(an: Analysis) -> list[Event]:
         for s, e in runs(tr.t, on_carriageway(an, tr), max_gap=0.8):
             sel = (tr.t >= s) & (tr.t <= e)
             # people waiting at the kerb edge stand still; people crossing walk
-            if e - s >= JW_MIN_DURATION and np.median(tr.speed[sel]) >= JW_MIN_SPEED:
+            if e - s >= JW_MIN_DURATION and JW_MIN_SPEED <= np.median(tr.speed[sel]) <= JW_MAX_SPEED:
                 events.append([s, e, "jaywalking"])
     return events
 
