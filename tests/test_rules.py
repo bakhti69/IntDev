@@ -62,14 +62,26 @@ def test_queue_is_not_stopped_vehicle():
     assert only(detect(make_analysis(tracks)), "stopped_vehicle") == []
 
 
-def test_red_light_inferred_from_queue():
+def test_queue_inference_is_not_used_for_red_light():
+    """The approach towards the camera has its signal facing away: on the sample video,
+    queue-based red inference fired on turn lanes, so red_light is only read from heads."""
     tracks = [
-        make_track(1, "car", *still(0, 30, (390, 415))),   # queue heads waiting at the line
+        make_track(1, "car", *still(0, 30, (390, 415))),
         make_track(2, "car", *still(0, 30, (590, 392))),
-        make_track(3, "car", *path(10, 14, (330, 300), (900, 640))),  # runs the red
+        make_track(3, "car", *path(10, 14, (330, 300), (900, 640))),
     ]
-    ev = only(detect(make_analysis(tracks)), "red_light")
-    assert len(ev) == 1 and 10.5 < ev[0][0] < 12.5
+    assert only(detect(make_analysis(tracks)), "red_light") == []
+
+
+def test_stop_line_inferred_from_queue():
+    """A car waits past the stop line while the queue next to it holds behind it."""
+    tracks = [
+        make_track(1, "car", *still(0, 30, (390, 415))),
+        make_track(2, "car", *still(0, 30, (300, 425))),
+        make_track(3, "car", *concat(path(2, 4, (560, 330), (640, 440)), still(4.08, 20, (640, 440)))),
+    ]
+    ev = only(detect(make_analysis(tracks)), "stop_line")
+    assert len(ev) == 1 and 3.5 <= ev[0][0] <= 5.0 and ev[0][1] >= 19
 
 
 def test_green_start_is_not_red_light():

@@ -111,3 +111,16 @@ def finalize(h: TrackHistory, pos_sigma: float = 0.25, vel_window: float = 0.4) 
 def angle_diff(a: np.ndarray | float, b: np.ndarray | float) -> np.ndarray | float:
     """Smallest signed difference a - b in radians, in (-pi, pi]."""
     return (np.asarray(a) - np.asarray(b) + np.pi) % (2 * np.pi) - np.pi
+
+
+def closest_approach(rel: np.ndarray, v_rel: np.ndarray, horizon: float = 4.0) -> tuple[float | None, float, float]:
+    """(time, distance) of the closest point of approach for relative position and velocity
+    (both in body lengths); time is None when the two are not approaching."""
+    vv = float(v_rel @ v_rel)
+    speed = float(np.sqrt(vv))
+    if speed < 0.2:
+        return None, float("inf"), speed
+    t_cpa = -float(rel @ v_rel) / vv
+    if t_cpa <= 0 or t_cpa > horizon:
+        return None, float("inf"), speed
+    return t_cpa, float(np.linalg.norm(rel + v_rel * t_cpa)), speed

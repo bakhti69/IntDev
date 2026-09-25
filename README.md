@@ -24,8 +24,8 @@ python evaluate.py --pred predictions.json --validate-only
 * No internet is needed at run time (the Ultralytics hub is switched off with `YOLO_OFFLINE=1`).
 * GPU is used automatically when available. Without a GPU the settings drop to a lighter profile
   (640 px input, fewer analysed frames) — see [Runtime](#runtime).
-* Environment overrides for ablations: `TW_IMGSZ`, `TW_STRIDE`, `TW_RISK_STRIDE`, `TW_RISK_IMGSZ`, `TW_BATCH`,
-  `TW_DEVICE`, `TW_WEIGHTS` (`src/trafficwatch/config.py`).
+* Environment overrides for ablations: `TW_IMGSZ`, `TW_RATE` / `TW_STRIDE`, `TW_RISK_RATE` / `TW_RISK_STRIDE`,
+  `TW_RISK_IMGSZ`, `TW_BATCH`, `TW_DEVICE`, `TW_WEIGHTS` (`src/trafficwatch/config.py`).
 
 ### Reproduce `predictions_samples.json` and the website data
 
@@ -53,7 +53,7 @@ python tools/draw_scene.py --video samples/<clip>.mp4 --out scene.jpg
 | Scene map | Carriageways, islands, crosswalks, stop lines, lane lines, lane directions, signal heads drawn once on `configs/scene_ref.jpg`, registered to each video with SIFT + RANSAC (similarity transform) | rule-based |
 | Signal state | Lit red / amber / green pixels in each signal-head box, timeline with flicker bridging and a 1 s mode filter | rule-based |
 | 14 event classes | Rules on trajectories (below) | rule-based |
-| Part B risk | Causal tracker → pairwise time-to-collision, hard braking, wrong-way driving → `1 − Π(1 − rᵢ)`, fast attack / slow release | rule-based |
+| Part B risk | Causal tracker → closest point of approach of every pair (how close and how soon their paths meet), hard braking on a collision course, wrong-way driving → `1 − Π(1 − rᵢ)`, fast attack / slow release | rule-based |
 
 Why rules: there are no labels for this camera, and the hidden test set contains events that are not in
 the samples. A classifier trained on the samples could not have seen them; rules written from the class
@@ -66,11 +66,11 @@ the perspective effect: the same thresholds hold in the foreground and at the fa
 
 | Class | Rule | Segment |
 |---|---|---|
-| `accident` | Two road users reach contact (ground distance < 0.9 body lengths, boxes overlap) after approaching from ≥ 1.5, with impact-like deceleration (≤ −1.5 bl/s²) or deflection (≥ 30°), then stay together | first contact → both at rest / leave |
-| `near_miss` | TTC < 1.5 s, closest gap 0.9–1.8 (no contact), sharp braking or a ≥ 45°/s swerve | evasive action → gap > 2.5 |
+| `accident` | Contact (ground distance < 0.8 body lengths, boxes overlap) after approaching from ≥ 1.5 at ≥ 1.5 bl/s; an impact stop (speed drops to ≤ 20 % across ~1 s) or a ≥ 45° deflection; then both at rest together ≥ 2 s | first contact → both at rest |
+| `near_miss` | TTC < 1 s on a real collision course (closest point of approach ≤ 0.5 lengths, not side-by-side passing), closest gap 0.8–1.8 (no contact), emergency braking or a ≥ 60°/s swerve | evasive action → gap > 2.5 |
 | `red_light` | Front of the vehicle crosses a stop line while its approach is red (see signals below) | crossing → leaves the junction |
 | `wrong_way` | Moving > 120° against the legal direction of its carriageway for ≥ 1.2 s and ≥ 1.5 body lengths | enters → returns / leaves frame |
-| `illegal_u_turn` | Heading reverses ≥ 150° within 20 s over ≥ 2 body lengths | starts turning → settles |
+| `illegal_u_turn` | Heading (while moving ≥ 0.5 bl/s) reverses ≥ 150° within 20 s over a driven arc of ≥ 2.5 body lengths | starts turning → settles |
 | `stopped_vehicle` | Stationary ≥ 10 s on the carriageway while ≥ 3 moving vehicles pass it; buses skipped (bus stop) | stops → moves / leaves |
 | `jaywalking` | Pedestrian (not a rider/passenger) with feet on the carriageway outside crosswalks ≥ 1 s | steps on → leaves |
 | `failure_to_yield` | Vehicle footprint crosses a crosswalk at speed while a pedestrian is on it within 4 body lengths | enters → leaves crossing |
@@ -121,12 +121,44 @@ website/                     static team website (GitHub Pages), labeling tool f
 
 ## Runtime
 
-Part A analyses every 2nd frame (12.5 Hz) in batches of 8 at 960 px; skipped frames are grabbed, not decoded.
-Part B runs the detector on every 3rd frame and holds the score in between. Without a GPU: 640 px, every 3rd /
-6th frame.
+Frame sampling follows the video's frame rate: Part A analyses 12.5 frames/s in batches of 8 at 960 px (skipped
+frames are grabbed, not decoded); Part B runs the detector at 8 frames/s and holds the score in between. Without a
+GPU: 640 px, 10 and 5 frames/s.
 
 Measured on a 4-core CPU without GPU (CPU profile), 1080p / 25 fps / 30 s clip: Part A 26.6 s + Part B 12.0 s =
 **38.6 s (1.3 × duration, budget 3 ×)**. Not yet measured on a T4.
+
+### Lessons from the first sample video (dense, jammed traffic)
+
+A first run on a sample clip reported 4 "accidents", 5 U-turns and a risk score above 0.5 half of the time.
+Diagnosis and fixes:
+
+* Accidents were queue stops and neighbouring lanes overlapping in perspective → an impact now needs an abrupt
+  stop from real speed and both road users at rest together afterwards.
+* U-turns were headings of queued cars flipping with box jitter → headings only count while moving, over a driven arc.
+* The risk fired on cars passing a bus at the stop: centre-to-centre TTC treats side-by-side passing as a collision
+  course → closest point of approach, measured in the smaller road user's lengths.
+* Frame sampling now follows the video's frame rate instead of assuming 25 fps.
+
+Result on the same clip: 10 events instead of 19, no accidents, alarm share 49 % → 1.8 %.
+
+### Dev set: first labelled sample clip (67 s, 8 labelled events)
+
+Scored with the official `evaluate.py` against our own labels (built with `website/labeler.html`):
+
+| Step | Score A |
+|---|---|
+| First labelled run | 0.265 |
+| red_light only from signal heads that face the camera; pedestrian head dropped (it shows WALK while the queue flows); congestion = the whole direction at a standstill; stopped_vehicle outside the signal queue; jaywalking needs walking | 0.390 |
+| No conflicts between tiny far-away road users; obstacles must stay clear of all detected road users | 0.502 |
+| stopped_vehicle needs 15 s (10–14 s stops were cars yielding before a turn) | 0.549 |
+| Review with the annotator (5 yes/no questions): a U-turn must be one continuous manoeuvre — the "U-turn" of the white truck was an identity switch during a 10 s standstill; the car's U-turn was confirmed and added to the labels | 0.692 |
+
+Per class at the end: congestion, stop_line, stopped_vehicle 1.00; red_light 0.40; jaywalking 0.44;
+failure_to_yield 0 (the labelled one is at the bottom frame edge and is missed; at least one of our 3 predictions
+is real but was not localised). The confirmed U-turn's boundaries come from our own detection, so its 1.00 is partly
+circular: without that class the score is about 0.64. One clip and one annotator — a first calibration, not a
+validated result. Labels and review notes: `data/dev/`.
 
 ## Determinism
 

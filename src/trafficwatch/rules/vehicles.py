@@ -18,11 +18,15 @@ WW_MIN_TRAVEL = 1.5         # body sizes travelled against the flow
 # illegal_u_turn
 UT_MAX_WINDOW = 20.0        # s to complete the turn
 UT_MIN_TURN = np.deg2rad(150)
-UT_MIN_PATH = 2.0           # body sizes
+UT_MIN_PATH = 2.5           # body lengths driven during the turn
+UT_MIN_EXCURSION = 1.0      # body lengths away from where the turn starts
+UT_MIN_SPEED = 0.5          # heading only counts while really moving
+UT_MAX_PAUSE = 3.0          # s without moving inside the turn
 # stopped_vehicle
 SV_MAX_SPEED = 0.12
-SV_MIN_DURATION = 10.0
+SV_MIN_DURATION = 15.0      # definition says 10 s; 10-14 s stops in the junction were cars yielding before a turn
 SV_MIN_PASSING = 3          # distinct moving vehicles passing it while stopped (queue test)
+SV_MIN_SIZE = 0.035         # of the frame width: far kerbside parking is not reliably "on the carriageway"
 # solid_line_crossing
 SL_SIDE_MARGIN = 0.3        # fraction of box width on each side of the line
 SL_MAX_DURATION = 4.0
@@ -44,8 +48,10 @@ def wrong_way(an: Analysis) -> list[Event]:
     return events
 
 
-def _unwrapped_heading(tr: TrackData) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    ok = ~np.isnan(tr.heading)
+def _unwrapped_heading(tr: TrackData, min_speed: float = 0.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Heading over the samples where the vehicle really moves (jitter of a queued car
+    flips its heading at random)."""
+    ok = ~np.isnan(tr.heading) & (tr.speed >= min_speed)
     return tr.t[ok], np.unwrap(tr.heading[ok]), np.where(ok)[0]
 
 
@@ -58,8 +64,15 @@ def _u_turn_span(tr: TrackData, t: np.ndarray, th: np.ndarray, idx: np.ndarray) 
         a = lo + int(np.argmax(np.abs(th[lo:j + 1] - th[j])))
         if abs(th[j] - th[a]) < UT_MIN_TURN:
             continue
-        path = np.sum(np.linalg.norm(np.diff(tr.pos[idx[a]:idx[j] + 1], axis=0), axis=1))
-        if path / np.median(tr.size[idx[a]:idx[j] + 1]) < UT_MIN_PATH:
+        # one continuous manoeuvre: a long standstill inside it is usually an identity switch
+        if j > a and float(np.max(np.diff(t[a:j + 1]))) > UT_MAX_PAUSE:
+            continue
+        # driven arc: moving samples only, and the vehicle really goes out and comes back
+        moving = tr.pos[idx[a:j + 1]]
+        size = float(np.median(tr.size[idx[a]:idx[j] + 1]))
+        path = np.sum(np.linalg.norm(np.diff(moving, axis=0), axis=1)) / size
+        excursion = np.max(np.linalg.norm(moving - moving[0], axis=1)) / size
+        if path < UT_MIN_PATH or excursion < UT_MIN_EXCURSION:
             continue
         # extend while the vehicle is still turning, then trim both ends to the turn itself
         end = j
@@ -75,7 +88,7 @@ def illegal_u_turn(an: Analysis) -> list[Event]:
     """Heading reverses by >= 150 deg within 20 s while travelling >= 2 body sizes."""
     events = []
     for tr in vehicle_tracks(an):
-        t, th, idx = _unwrapped_heading(tr)
+        t, th, idx = _unwrapped_heading(tr, UT_MIN_SPEED)
         if len(t) < 10:
             continue
         span = _u_turn_span(tr, t, th, idx)
@@ -108,9 +121,11 @@ def stopped_vehicle(an: Analysis) -> list[Event]:
     signal (the queue moves as a whole). Buses are skipped: bus-stop dwell.
     """
     events = []
-    zones_ok = {"approach_down", "upper", "intersection", "side_road", "junction_box"}
+    # the approach and the box before the junction are where the signal queue stands
+    zones_ok = {"upper", "intersection", "side_road"}
+    min_size = SV_MIN_SIZE * an.info.width
     for tr in vehicle_tracks(an, two_wheelers=False):
-        if tr.category == "bus" or tr.duration < SV_MIN_DURATION:
+        if tr.category == "bus" or tr.duration < SV_MIN_DURATION or float(np.median(tr.size)) < min_size:
             continue
         zones = an.zones(tr)
         for s, e in runs(tr.t, tr.speed < SV_MAX_SPEED, max_gap=1.5):

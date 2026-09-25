@@ -38,12 +38,20 @@ class Settings:
     weights: str = field(default_factory=lambda: _env("TW_WEIGHTS", str(WEIGHTS_DIR / "yolo11s.pt")))
     imgsz: int = field(default_factory=lambda: _env("TW_IMGSZ", 960, 640))
     device: str = field(default_factory=lambda: _env("TW_DEVICE", ""))
-    # Part A: analyse every n-th frame (25 fps / 2 = 12.5 Hz)
-    stride: int = field(default_factory=lambda: _env("TW_STRIDE", 2, 3))
+    # Part A: analysis rate (frames per second); stride = round(video fps / rate), or TW_STRIDE
+    rate: float = field(default_factory=lambda: _env("TW_RATE", 12.5, 10.0))
+    stride: int = field(default_factory=lambda: _env("TW_STRIDE", 0))
     batch: int = field(default_factory=lambda: _env("TW_BATCH", 8, 4))
-    # Part B: run the detector on every n-th frame, hold the score in between
-    risk_stride: int = field(default_factory=lambda: _env("TW_RISK_STRIDE", 3, 6))
+    # Part B: detector rate; the score is held in between
+    risk_rate: float = field(default_factory=lambda: _env("TW_RISK_RATE", 8.0, 5.0))
+    risk_stride: int = field(default_factory=lambda: _env("TW_RISK_STRIDE", 0))
     risk_imgsz: int = field(default_factory=lambda: _env("TW_RISK_IMGSZ", 960, 640))
+
+    def stride_for(self, fps: float) -> int:
+        return self.stride or max(1, round(fps / self.rate))
+
+    def risk_stride_for(self, fps: float) -> int:
+        return self.risk_stride or max(1, round(fps / self.risk_rate))
 
     @property
     def device_or_none(self) -> str | None:

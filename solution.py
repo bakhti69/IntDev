@@ -56,7 +56,7 @@ class RiskEstimator:
     def reset(self, meta: dict) -> None:
         self.meta = meta
         self.settings = Settings()
-        self.stride = max(1, self.settings.risk_stride)
+        self.stride = self.settings.risk_stride_for(float(meta.get("fps") or 25.0))
         self.frame_idx = 0
         self.last_score = 0.0
         if not hasattr(self, "_risk"):
