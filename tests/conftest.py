@@ -18,7 +18,7 @@ from trafficwatch.video import VideoInfo  # noqa: E402
 
 FPS = 12.5
 W, H = 1662, 924
-SIZES = {"car": (90, 60), "bus": (200, 110), "person": (22, 55), "motorcycle": (30, 45)}
+SIZES = {"car": (110, 75), "bus": (200, 110), "person": (22, 55), "motorcycle": (30, 45)}
 
 
 def make_track(tid: int, category: str, times, points, size_scale: float = 1.0):

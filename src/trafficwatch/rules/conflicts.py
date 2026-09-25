@@ -16,7 +16,7 @@ from .common import Event, vehicle_tracks
 from .pedestrians import pedestrians
 
 CANDIDATE_DIST = 2.0        # pairs ever closer than this (normalised) are examined
-CONFLICT_MIN_SIZE = 0.03    # of the frame width: far-away road users are too small to judge contact
+CONFLICT_MIN_SIZE = 0.045   # of the frame width: far-away road users are too small to judge contact
 APPROACH_DIST = 1.5         # ... and must have been at least this far apart just before
 # accident
 ACC_CONTACT_DIST = 0.8
@@ -51,6 +51,7 @@ class PairSeries:
     dist: np.ndarray         # normalised ground distance
     closing: np.ndarray      # -d(dist)/dt  (per second)
     iou: np.ndarray
+    ok: np.ndarray           # both boxes fully inside the frame
 
 
 def pair_series(a: TrackData, b: TrackData) -> PairSeries | None:
@@ -60,7 +61,8 @@ def pair_series(a: TrackData, b: TrackData) -> PairSeries | None:
     dist = np.linalg.norm(a.pos[ia] - b.pos[ib], axis=1) / (0.5 * (a.size[ia] + b.size[ib]))
     dist = gaussian_smooth(t, dist, 0.15)
     closing = -np.gradient(dist, t)
-    return PairSeries(a, b, t, ia, ib, dist, closing, paired_iou(a.boxes[ia], b.boxes[ib]))
+    return PairSeries(a, b, t, ia, ib, dist, closing, paired_iou(a.boxes[ia], b.boxes[ib]),
+                      a.in_frame[ia] & b.in_frame[ib])
 
 
 def candidate_pairs(an: Analysis) -> list[PairSeries]:
@@ -146,7 +148,7 @@ def _accident_at(p: PairSeries) -> tuple[float, float] | None:
     what separates a crash is the abrupt stop from speed and the aftermath.
     """
     spd_a, spd_b = p.a.speed[p.ia], p.b.speed[p.ib]
-    contact = np.where((p.dist < ACC_CONTACT_DIST) & (p.iou > ACC_CONTACT_IOU))[0]
+    contact = np.where((p.dist < ACC_CONTACT_DIST) & (p.iou > ACC_CONTACT_IOU) & p.ok)[0]
     for c in contact:
         tc = p.t[c]
         if not _approached(p, tc):
@@ -196,7 +198,7 @@ def near_miss(an: Analysis, pairs: list[PairSeries] | None = None) -> list[Event
             continue
         gap = np.maximum(p.dist - ACC_CONTACT_DIST, 0.05)
         ttc = np.where(p.closing > NM_MIN_CLOSING, gap / np.maximum(p.closing, 1e-6), np.inf)
-        danger = np.where(ttc < NM_TTC)[0]
+        danger = np.where((ttc < NM_TTC) & p.ok)[0]
         if len(danger) == 0:
             continue
         danger = [k for k in danger if _on_course(p, k)]

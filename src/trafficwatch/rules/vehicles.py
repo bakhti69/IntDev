@@ -25,7 +25,7 @@ UT_MAX_PAUSE = 3.0          # s without moving inside the turn
 # stopped_vehicle
 SV_MAX_SPEED = 0.12
 SV_MIN_DURATION = 15.0      # definition says 10 s; 10-14 s stops in the junction were cars yielding before a turn
-SV_MIN_PASSING = 3          # distinct moving vehicles passing it while stopped (queue test)
+SV_MIN_OVERTAKES = 2        # vehicles that drive past it in its own direction (a signal queue has none)
 SV_MIN_SIZE = 0.035         # of the frame width: far kerbside parking is not reliably "on the carriageway"
 # solid_line_crossing
 SL_SIDE_MARGIN = 0.3        # fraction of box width on each side of the line
@@ -39,7 +39,7 @@ def wrong_way(an: Analysis) -> list[Event]:
         wrong = np.zeros(len(tr.t), bool)
         for poly, direction in an.scene.wrong_way_zones.values():
             in_zone = inside(poly, tr.pos)
-            wrong |= in_zone & (tr.speed >= WW_MIN_SPEED) & (unit @ direction <= WW_MAX_COS)
+            wrong |= in_zone & tr.in_frame & (tr.speed >= WW_MIN_SPEED) & (unit @ direction <= WW_MAX_COS)
         for s, e in runs(tr.t, wrong, max_gap=0.8):
             i, j = tr.index_at(s), tr.index_at(e)
             travel = np.linalg.norm(tr.pos[j] - tr.pos[i]) / np.median(tr.size[i:j + 1])
@@ -48,10 +48,22 @@ def wrong_way(an: Analysis) -> list[Event]:
     return events
 
 
-def _unwrapped_heading(tr: TrackData, min_speed: float = 0.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _side_edge(an: Analysis, tr: TrackData) -> np.ndarray:
+    """Box cut off by the left, right or top border: its centre slides as the vehicle
+    enters or leaves, which fakes a turn. (At the bottom border only the rear of a
+    large, close vehicle is cut and its direction of travel stays reliable.)"""
+    m = 0.01 * an.info.width
+    b = tr.boxes
+    return (b[:, 0] <= m) | (b[:, 2] >= an.info.width - m) | (b[:, 1] <= m)
+
+
+def _unwrapped_heading(tr: TrackData, min_speed: float = 0.0,
+                       exclude: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Heading over the samples where the vehicle really moves (jitter of a queued car
     flips its heading at random)."""
     ok = ~np.isnan(tr.heading) & (tr.speed >= min_speed)
+    if exclude is not None:
+        ok &= ~exclude
     return tr.t[ok], np.unwrap(tr.heading[ok]), np.where(ok)[0]
 
 
@@ -88,7 +100,7 @@ def illegal_u_turn(an: Analysis) -> list[Event]:
     """Heading reverses by >= 150 deg within 20 s while travelling >= 2 body sizes."""
     events = []
     for tr in vehicle_tracks(an):
-        t, th, idx = _unwrapped_heading(tr, UT_MIN_SPEED)
+        t, th, idx = _unwrapped_heading(tr, UT_MIN_SPEED, exclude=_side_edge(an, tr))
         if len(t) < 10:
             continue
         span = _u_turn_span(tr, t, th, idx)
@@ -97,28 +109,57 @@ def illegal_u_turn(an: Analysis) -> list[Event]:
     return events
 
 
-def _passing_vehicles(an: Analysis, tr: TrackData, s: float, e: float, radius: float) -> int:
-    """Distinct moving vehicles that pass within ``radius`` px of the stopped one."""
-    i = tr.index_at(s)
-    p = tr.pos[i]
+def _travel_direction(an: Analysis, tr: TrackData, s: float, e: float, radius: float) -> np.ndarray | None:
+    """Unit direction the stopped vehicle was driving in; if it was already standing when
+    first seen, the dominant direction of the traffic moving around it."""
+    before = (tr.t >= s - 3.0) & (tr.t < s) & (tr.speed > 0.5)
+    if before.sum() >= 3:
+        v = tr.vel[before].mean(axis=0)
+        return v / (np.linalg.norm(v) + 1e-9)
+    p = tr.pos[tr.index_at(s)]
+    acc = np.zeros(2)
+    for other in an.tracks:
+        if other.id == tr.id or not other.is_vehicle:
+            continue
+        m = (other.t >= s) & (other.t <= e) & (other.speed > 1.0)
+        m &= np.linalg.norm(other.pos - p, axis=1) < radius
+        if m.any():
+            u = other.vel[m] / (np.linalg.norm(other.vel[m], axis=1, keepdims=True) + 1e-9)
+            acc += u.sum(axis=0)
+    n = np.linalg.norm(acc)
+    return acc / n if n > 0 else None
+
+
+def _overtakers(an: Analysis, tr: TrackData, s: float, e: float, radius: float) -> int:
+    """Distinct vehicles that drive past the stopped one in its own direction, from behind
+    it to ahead of it. A queue at a signal is never overtaken; a stopped vehicle is."""
+    direction = _travel_direction(an, tr, s, e, radius)
+    if direction is None:
+        return 0
+    p = tr.pos[tr.index_at(s)]
+    size = float(np.median(tr.size))
+    normal = np.array([-direction[1], direction[0]])
     n = 0
     for other in an.tracks:
         if other.id == tr.id or not (other.is_vehicle or other.is_two_wheeler):
             continue
-        m = (other.t >= s) & (other.t <= e)
-        if not m.any():
+        m = (other.t >= s) & (other.t <= e) & (other.speed > 0.8)
+        if m.sum() < 2:
             continue
-        near = np.linalg.norm(other.pos[m] - p, axis=1) < radius
-        if np.any(near & (other.speed[m] > 1.0)):
+        rel = other.pos[m] - p
+        along, lateral = rel @ direction, rel @ normal
+        unit = other.vel[m] / (np.linalg.norm(other.vel[m], axis=1, keepdims=True) + 1e-9)
+        close = (np.abs(lateral) < radius) & (unit @ direction > 0.7)
+        if close.any() and along[close].min() < -0.5 * size and along[close].max() > 0.5 * size:
             n += 1
     return n
 
 
 def stopped_vehicle(an: Analysis) -> list[Event]:
-    """Stationary >= 10 s on the carriageway while other traffic keeps flowing past.
+    """Stationary on the carriageway while traffic in its own direction drives past it.
 
-    Traffic flowing past is what separates a stopped vehicle from a queue at the
-    signal (the queue moves as a whole). Buses are skipped: bus-stop dwell.
+    Being overtaken is what separates a stopped vehicle from a queue at a signal
+    (the queue moves as a whole). Buses are skipped: bus-stop dwell.
     """
     events = []
     # the approach and the box before the junction are where the signal queue stands
@@ -136,7 +177,7 @@ def stopped_vehicle(an: Analysis) -> list[Event]:
             if np.mean(on_road) < 0.8:
                 continue
             radius = 3.0 * float(np.median(tr.size[i:j + 1]))
-            if _passing_vehicles(an, tr, s, e, radius) < SV_MIN_PASSING:
+            if _overtakers(an, tr, s, e, radius) < SV_MIN_OVERTAKES:
                 continue
             events.append([s, extend_to_track_end(tr, e, slack=2.0), "stopped_vehicle"])
     return events

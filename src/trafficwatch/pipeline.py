@@ -146,7 +146,7 @@ def analyze(video_path: str, settings: Settings | None = None,
         h.boxes = [h.boxes[i] for i in order]
     return Analysis(
         video_path=str(video_path), info=info, scene=scene,
-        times=np.asarray(times), tracks=[finalize(h) for h in hist],
+        times=np.asarray(times), tracks=[finalize(h, (info.width, info.height)) for h in hist],
         signals={name: SignalTimeline.build(times, states) for name, states in sig_s.items()}, cues=cues,
         counts={k: np.asarray(v) for k, v in counts.items()},
     )
