@@ -14,7 +14,7 @@ import numpy as np
 from .config import Settings, seed_everything
 from .detector import Detections, get_detector
 from .scene import Scene, load_scene
-from .signals import SignalTimeline, frame_state
+from .signals import SignalTimeline, read_heads
 from .tracker import Tracker
 from .tracks import TrackData, TrackHistory, finalize
 from .video import VideoInfo, background_frame, iter_frames, video_info
@@ -42,7 +42,7 @@ class Analysis:
     scene: Scene
     times: np.ndarray
     tracks: list[TrackData]
-    signal: SignalTimeline
+    signals: dict[str, SignalTimeline]            # per signal head
     cues: SceneCues
     counts: dict[str, np.ndarray]                  # per processed frame, per category
     _zones: dict[int, list] = field(default_factory=dict, repr=False)
@@ -108,8 +108,7 @@ def analyze(video_path: str, settings: Settings | None = None,
     cues = SceneCues(scale=cue_scale)
     histories: dict[int, TrackHistory] = {}
     times: list[float] = []
-    sig_t: list[float] = []
-    sig_s: list[str] = []
+    sig_s: dict[str, list[str]] = {name: [] for name in scene.signal_lights}
     counts: dict[str, list[int]] = {c: [] for c in ("person", "bicycle", "car", "motorcycle", "bus", "truck", "animal")}
     next_cue = 0.0
 
@@ -123,8 +122,8 @@ def analyze(video_path: str, settings: Settings | None = None,
                 counts[c].append(sum(1 for x in dets.cats if x == c))
             for tr in tracker.update(dets, t):
                 histories.setdefault(tr.id, TrackHistory(tr.id)).add(t, tr.box, tr.category)
-            sig_t.append(t)
-            sig_s.append(frame_state(frame, scene.signal_lights))
+            for name, state in read_heads(frame, scene.signal_lights, scene.signal_kinds).items():
+                sig_s[name].append(state)
             if t + 1e-6 >= next_cue:
                 _add_cue(cues, frame, dets, t)
                 next_cue = t + CUE_PERIOD
@@ -148,7 +147,7 @@ def analyze(video_path: str, settings: Settings | None = None,
     return Analysis(
         video_path=str(video_path), info=info, scene=scene,
         times=np.asarray(times), tracks=[finalize(h) for h in hist],
-        signal=SignalTimeline.build(sig_t, sig_s), cues=cues,
+        signals={name: SignalTimeline.build(times, states) for name, states in sig_s.items()}, cues=cues,
         counts={k: np.asarray(v) for k, v in counts.items()},
     )
 

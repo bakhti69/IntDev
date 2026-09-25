@@ -21,20 +21,20 @@
   },
   "approaches": {
     "down": {
-      "_comment": "Traffic from the far end of the avenue towards the camera. Its signal head faces away from the camera, so red is inferred from the queue behaviour.",
+      "_comment": "Traffic from the far end of the avenue towards the camera. Its own signal head faces away from the camera, so red is inferred: the pedestrian head for the crosswalk in front of it shows WALK, or vehicles stand still at the head of the queue.",
       "zone": "approach_down",
       "direction": [0.92, 0.39],
       "stop_line": [[250, 446], [800, 386]],
       "box_zone": [[250, 446], [800, 386], [1010, 482], [350, 557]],
-      "signal": "inferred"
+      "walk_head": "left_pole"
     },
     "up": {
-      "_comment": "Traffic leaving the intersection up the avenue (away from the camera). Its signal heads face the camera and are read directly.",
+      "_comment": "Traffic leaving the intersection up the avenue (away from the camera). Its vehicle signal head (median pole) faces the camera and is read directly.",
       "zone": "upper",
       "direction": [-0.94, -0.35],
       "stop_line": [[1010, 484], [1400, 445]],
       "box_zone": [[1010, 484], [1400, 445], [1340, 412], [1000, 443]],
-      "signal": "lights"
+      "signal_head": "median_pole"
     }
   },
   "wrong_way_zones": {
@@ -48,9 +48,15 @@
     }
   },
   "signal_lights": {
-    "_comment": "Vehicle signal heads that face the camera (control the 'up' approach). Boxes are [x1, y1, x2, y2].",
-    "left_pole": [220, 400, 254, 446],
-    "median_pole": [972, 298, 1018, 348]
+    "_comment": "Signal heads facing the camera. Boxes are [x1, y1, x2, y2]. 'pedestrian' heads show a walking/standing figure (red/green only).",
+    "median_pole": {
+      "box": [972, 298, 1018, 348],
+      "kind": "vehicle"
+    },
+    "left_pole": {
+      "box": [220, 400, 254, 446],
+      "kind": "pedestrian"
+    }
   },
   "solid_lines": {
     "_comment": "Solid lane dividers on the approach just before the stop line.",

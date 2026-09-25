@@ -1,0 +1,6 @@
+numpy
+opencv-python-headless
+scipy
+ultralytics
+imageio-ffmpeg
+gradio

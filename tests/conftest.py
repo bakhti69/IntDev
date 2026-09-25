@@ -52,14 +52,15 @@ def concat(*parts):
     return t[keep], pts[keep]
 
 
-def make_analysis(tracks, duration: float = 60.0, signal=None) -> Analysis:
+def make_analysis(tracks, duration: float = 60.0, signals=None) -> Analysis:
     times = np.round(np.arange(0, duration, 1 / FPS) * FPS) / FPS
-    sig = signal or SignalTimeline(times, np.zeros(len(times), int))
+    unknown = SignalTimeline(times, np.zeros(len(times), int))
+    sig = {"median_pole": unknown, "left_pole": unknown, **(signals or {})}
     return Analysis(
         video_path="synthetic.mp4",
         info=VideoInfo(fps=25.0, n_frames=int(duration * 25), width=W, height=H),
         scene=load_scene(None, W, H),
-        times=times, tracks=tracks, signal=sig,
+        times=times, tracks=tracks, signals=sig,
         cues=SceneCues(scale=384 / W), counts={},
     )
 

@@ -1,0 +1,242 @@
+[
+ {
+  "name": "frame_1.jpg",
+  "width": 1662,
+  "height": 917,
+  "registered": true,
+  "inliers": 799,
+  "stop_line_px": [
+   [
+    249.5,
+    445.1000061035156
+   ],
+   [
+    799.5,
+    385.1000061035156
+   ]
+  ],
+  "offset_vs_reference": [
+   -0.5,
+   -0.9
+  ],
+  "brightness": 90.3,
+  "contrast": 70.3,
+  "signals": {
+   "median_pole": "green",
+   "left_pole": "green"
+  },
+  "detections": {
+   "car": 33,
+   "person": 14,
+   "motorcycle": 1,
+   "truck": 1
+  },
+  "by_zone": {
+   "intersection": {
+    "car": 12
+   },
+   "junction_box": {
+    "car": 5
+   },
+   "upper": {
+    "car": 6,
+    "truck": 1
+   },
+   "approach_down": {
+    "car": 7
+   },
+   "crosswalk_side": {
+    "person": 5,
+    "motorcycle": 1
+   },
+   "off_road": {
+    "car": 3,
+    "person": 9
+   }
+  },
+  "image": "media/frames/frame_1_annotated.jpg",
+  "raw": "media/frames/frame_1.jpg"
+ },
+ {
+  "name": "frame_2.jpg",
+  "width": 1657,
+  "height": 916,
+  "registered": true,
+  "inliers": 64,
+  "stop_line_px": [
+   [
+    198.1999969482422,
+    476.79998779296875
+   ],
+   [
+    754.7999877929688,
+    406.5
+   ]
+  ],
+  "offset_vs_reference": [
+   -51.0,
+   32.1
+  ],
+  "brightness": 59.5,
+  "contrast": 39.8,
+  "signals": {
+   "median_pole": "red",
+   "left_pole": "red"
+  },
+  "detections": {
+   "person": 25,
+   "car": 24,
+   "truck": 1
+  },
+  "by_zone": {
+   "crosswalk_side": {
+    "person": 3
+   },
+   "approach_down": {
+    "car": 16
+   },
+   "intersection": {
+    "person": 3,
+    "car": 3
+   },
+   "upper": {
+    "car": 3
+   },
+   "junction_box": {
+    "person": 10
+   },
+   "off_road": {
+    "car": 2,
+    "person": 9,
+    "truck": 1
+   }
+  },
+  "image": "media/frames/frame_2_annotated.jpg",
+  "raw": "media/frames/frame_2.jpg"
+ },
+ {
+  "name": "frame_3.jpg",
+  "width": 1662,
+  "height": 924,
+  "registered": true,
+  "inliers": 3590,
+  "stop_line_px": [
+   [
+    250.0,
+    446.0
+   ],
+   [
+    800.0,
+    386.0
+   ]
+  ],
+  "offset_vs_reference": [
+   0.0,
+   -0.0
+  ],
+  "brightness": 92.3,
+  "contrast": 67.2,
+  "signals": {
+   "median_pole": "unknown",
+   "left_pole": "red"
+  },
+  "detections": {
+   "bus": 1,
+   "car": 25,
+   "person": 25,
+   "truck": 1
+  },
+  "by_zone": {
+   "intersection": {
+    "bus": 1,
+    "car": 3
+   },
+   "crosswalk_side": {
+    "person": 4
+   },
+   "approach_down": {
+    "car": 8,
+    "truck": 1,
+    "person": 2
+   },
+   "off_road": {
+    "car": 5,
+    "person": 12
+   },
+   "upper": {
+    "car": 9,
+    "person": 5
+   },
+   "junction_box": {
+    "person": 2
+   }
+  },
+  "image": "media/frames/frame_3_annotated.jpg",
+  "raw": "media/frames/frame_3.jpg"
+ },
+ {
+  "name": "frame_4.jpg",
+  "width": 1657,
+  "height": 921,
+  "registered": true,
+  "inliers": 93,
+  "stop_line_px": [
+   [
+    245.60000610351562,
+    460.8999938964844
+   ],
+   [
+    801.7999877929688,
+    389.5
+   ]
+  ],
+  "offset_vs_reference": [
+   -3.7,
+   16.2
+  ],
+  "brightness": 27.1,
+  "contrast": 27.1,
+  "signals": {
+   "median_pole": "red",
+   "left_pole": "red"
+  },
+  "detections": {
+   "bus": 1,
+   "car": 22,
+   "person": 18,
+   "bicycle": 4,
+   "truck": 2,
+   "motorcycle": 1
+  },
+  "by_zone": {
+   "upper": {
+    "bus": 1,
+    "car": 6,
+    "person": 5,
+    "truck": 2
+   },
+   "intersection": {
+    "car": 7,
+    "person": 1
+   },
+   "approach_down": {
+    "car": 6,
+    "person": 1,
+    "motorcycle": 1
+   },
+   "crosswalk_side": {
+    "person": 3,
+    "bicycle": 4
+   },
+   "junction_box": {
+    "person": 5
+   },
+   "off_road": {
+    "car": 3,
+    "person": 3
+   }
+  },
+  "image": "media/frames/frame_4_annotated.jpg",
+  "raw": "media/frames/frame_4.jpg"
+ }
+]

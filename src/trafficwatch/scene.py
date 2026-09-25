@@ -33,7 +33,8 @@ class Approach:
     direction: np.ndarray        # unit vector of legal travel, image coords
     stop_line: np.ndarray        # (2, 2) endpoints
     box_zone: np.ndarray         # polygon between stop line and intersection
-    signal: str                  # "lights" (read from heads) or "inferred" (queue behaviour)
+    signal_head: str | None      # vehicle signal head read directly, if it faces the camera
+    walk_head: str | None        # pedestrian head whose WALK implies red for this approach
 
 
 @dataclass
@@ -46,6 +47,7 @@ class Scene:
     approaches: dict[str, Approach]
     wrong_way_zones: dict[str, tuple[np.ndarray, np.ndarray]]
     signal_lights: dict[str, np.ndarray]     # name -> [x1, y1, x2, y2]
+    signal_kinds: dict[str, str]             # name -> "vehicle" | "pedestrian"
     solid_lines: dict[str, np.ndarray]
     forbidden_movements: list[tuple[str, str]]
     registered: bool = False
@@ -204,10 +206,11 @@ def load_scene(frame_bgr: np.ndarray | None, width: int, height: int,
         v = M[:, :2] @ np.asarray(v, np.float32)
         return v / (np.linalg.norm(v) + 1e-9)
 
+    heads = {k: v for k, v in cfg["signal_lights"].items() if not k.startswith("_")}
     approaches = {
         name: Approach(name=name, zone=a["zone"], direction=unit(a["direction"]),
                        stop_line=tp(a["stop_line"]), box_zone=tp(a["box_zone"]),
-                       signal=a["signal"])
+                       signal_head=a.get("signal_head"), walk_head=a.get("walk_head"))
         for name, a in cfg["approaches"].items()
     }
     return Scene(
@@ -218,7 +221,8 @@ def load_scene(frame_bgr: np.ndarray | None, width: int, height: int,
         approaches=approaches,
         wrong_way_zones={k: (tp(v["polygon"]), unit(v["direction"]))
                          for k, v in cfg["wrong_way_zones"].items()},
-        signal_lights={k: box(v) for k, v in cfg["signal_lights"].items() if not k.startswith("_")},
+        signal_lights={k: box(v["box"]) for k, v in heads.items()},
+        signal_kinds={k: v["kind"] for k, v in heads.items()},
         solid_lines={k: tp(v) for k, v in cfg["solid_lines"].items() if not k.startswith("_")},
         forbidden_movements=[tuple(p) for p in cfg["forbidden_movements"]["pairs"]],
         registered=registered, inliers=n_in,

@@ -1,10 +1,10 @@
 """Signal-related rules and traffic state: red_light, stop_line, congestion.
 
 Signal state per approach:
-* ``lights``: read from the signal heads that face the camera (signals.py).
-* ``inferred``: the head faces away from the camera, so "red" is inferred
-  from behaviour - vehicles standing still at the head of the queue, right
-  behind the stop line, before and after the moment in question.
+* ``signal_head``: its vehicle head faces the camera and is read (signals.py).
+* otherwise red is inferred: the pedestrian head of the crosswalk in front
+  of the approach shows WALK, or vehicles stand still at the head of the
+  queue right behind the stop line before and after the moment in question.
 """
 from __future__ import annotations
 
@@ -58,9 +58,23 @@ class QueueHold:
 
 
 def _is_red(an: Analysis, approach: Approach, hold: QueueHold | None, t: float, tr_id: int) -> bool:
-    if approach.signal == "lights":
-        return an.signal.is_readable and an.signal.red_for(t, RL_RED_BEFORE)
+    if approach.signal_head:
+        head = an.signals.get(approach.signal_head)
+        return bool(head and head.is_readable and head.held("red", t, RL_RED_BEFORE))
+    walk = an.signals.get(approach.walk_head) if approach.walk_head else None
+    if walk is not None and walk.held("green", t, RL_RED_BEFORE):
+        return True
     return hold is not None and hold.holding(t - HOLD_BEFORE, t + HOLD_AFTER, tr_id) >= HOLD_MIN_FRACTION
+
+
+def _red_share(an: Analysis, approach: Approach, hold: QueueHold | None, s: float, e: float, tr_id: int) -> float:
+    """Share of [s, e] during which the approach has red."""
+    if approach.signal_head:
+        head = an.signals.get(approach.signal_head)
+        return head.fraction("red", s, e) if head and head.is_readable else 0.0
+    walk = an.signals.get(approach.walk_head) if approach.walk_head else None
+    share = walk.fraction("green", s, e) if walk is not None else 0.0
+    return max(share, hold.holding(s, e, tr_id) if hold is not None else 0.0)
 
 
 def _leave_junction(an: Analysis, tr: TrackData, k: int) -> float:
@@ -74,7 +88,7 @@ def _leave_junction(an: Analysis, tr: TrackData, k: int) -> float:
 def red_light(an: Analysis) -> list[Event]:
     events = []
     for approach in an.scene.approaches.values():
-        hold = QueueHold(an, approach) if approach.signal == "inferred" else None
+        hold = None if approach.signal_head else QueueHold(an, approach)
         for tr in vehicle_tracks(an):
             prog = line_progress(approach, front_point(tr, approach))
             unit = tr.vel / (np.linalg.norm(tr.vel, axis=1, keepdims=True) + 1e-9)
@@ -94,19 +108,14 @@ def red_light(an: Analysis) -> list[Event]:
 def stop_line(an: Analysis) -> list[Event]:
     events = []
     for approach in an.scene.approaches.values():
-        hold = QueueHold(an, approach) if approach.signal == "inferred" else None
+        hold = None if approach.signal_head else QueueHold(an, approach)
         for tr in vehicle_tracks(an, two_wheelers=False):
             prog = line_progress(approach, front_point(tr, approach)) / tr.size
             past = (prog > 0.1) & inside(approach.box_zone, tr.pos) & (tr.speed < STL_MAX_SPEED)
             for s, e in runs(tr.t, past, max_gap=1.0):
                 if e - s < STL_MIN_DURATION:
                     continue
-                mid = 0.5 * (s + e)
-                if approach.signal == "lights":
-                    red = an.signal.is_readable and an.signal.state_at(mid) == "red"
-                else:
-                    red = hold.holding(s, e, tr.id) >= 0.5
-                if red:
+                if _red_share(an, approach, hold, s, e, tr.id) >= 0.5:
                     events.append([s, e, "stop_line"])
     return events
 

@@ -146,5 +146,6 @@ def eda(an: Analysis) -> dict:
         "zones": zone_occupancy(an),
         "speeds": speed_histogram(an),
         "lighting": lighting(an),
-        "signal": {"t": an.signal.t[::5].round(2).tolist(), "state": an.signal.code[::5].tolist()},
+        "signals": {name: {"t": tl.t[::5].round(2).tolist(), "state": tl.code[::5].tolist()}
+                    for name, tl in an.signals.items()},
     }
