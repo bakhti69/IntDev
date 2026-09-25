@@ -46,7 +46,7 @@ class Track:
     id: int
     box: np.ndarray
     t: float
-    velocity: np.ndarray = field(default_factory=lambda: np.zeros(4, np.float32))  # box px / s
+    velocity: np.ndarray = field(default_factory=lambda: np.zeros(2, np.float32))  # centre px / s
     votes: Counter = field(default_factory=Counter)
     hits: int = 1
     last_seen: float = 0.0
@@ -55,8 +55,26 @@ class Track:
     def category(self) -> str:
         return self.votes.most_common(1)[0][0]
 
+    @property
+    def size(self) -> float:
+        return float(np.sqrt(max(1.0, (self.box[2] - self.box[0]) * (self.box[3] - self.box[1]))))
+
     def predict(self, t: float) -> np.ndarray:
-        return self.box + self.velocity * (t - self.t)
+        """Last box shifted by the centre velocity; extrapolation is capped so a
+        lost track does not fly off along the road and latch onto another car."""
+        dt = min(t - self.t, PREDICT_HORIZON)
+        dx, dy = self.velocity * dt
+        return self.box + np.array([dx, dy, dx, dy], np.float32)
+
+
+PREDICT_HORIZON = 0.5     # s of constant-velocity extrapolation
+MAX_SPEED = 8.0           # body sizes / s, cap on the velocity estimate
+GATE_DIST = 0.8           # max centre distance to the prediction, in body sizes
+GATE_SIZE = (0.6, 1.6)    # allowed size ratio detection / track
+
+
+def _centre(b: np.ndarray) -> np.ndarray:
+    return np.array([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2], np.float32)
 
 
 class Tracker:
@@ -76,13 +94,21 @@ class Tracker:
             return [], list(range(len(tracks))), list(range(len(boxes)))
         pred = np.stack([tr.predict(t) for tr in tracks])
         iou = iou_matrix(pred, boxes)
+        pc = (pred[:, :2] + pred[:, 2:]) / 2
+        bc = (boxes[:, :2] + boxes[:, 2:]) / 2
+        tsize = np.array([tr.size for tr in tracks])
+        bsize = np.sqrt(np.clip((boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1]), 1, None))
+        dist = np.linalg.norm(pc[:, None] - bc[None], axis=2) / tsize[:, None]
+        ratio = bsize[None, :] / tsize[:, None]
+        score = iou.copy()
+        score[(dist > GATE_DIST) | (ratio < GATE_SIZE[0]) | (ratio > GATE_SIZE[1])] = 0.0
         for i, tr in enumerate(tracks):
             g = category_group(tr.category)
             for j, gj in enumerate(groups):
                 if g != gj:
-                    iou[i, j] = 0.0
-        rows, cols = linear_sum_assignment(-iou)
-        matches = [(r, c) for r, c in zip(rows, cols) if iou[r, c] >= self.match_iou]
+                    score[i, j] = 0.0
+        rows, cols = linear_sum_assignment(-score)
+        matches = [(r, c) for r, c in zip(rows, cols) if score[r, c] >= self.match_iou]
         mr = {r for r, _ in matches}
         mc = {c for _, c in matches}
         return (matches, [i for i in range(len(tracks)) if i not in mr],
@@ -91,16 +117,18 @@ class Tracker:
     def _update_track(self, tr: Track, box: np.ndarray, cat: str, t: float) -> None:
         dt = t - tr.t
         if dt > 0:
-            v = (box - tr.box) / dt
-            tr.velocity = 0.6 * tr.velocity + 0.4 * v if tr.hits > 1 else v
+            v = (_centre(box) - _centre(tr.box)) / dt
+            v = 0.6 * tr.velocity + 0.4 * v if tr.hits > 1 else v
+            cap = MAX_SPEED * tr.size
+            speed = float(np.linalg.norm(v))
+            tr.velocity = (v * (cap / speed) if speed > cap else v).astype(np.float32)
         tr.box, tr.t, tr.last_seen = box, t, t
         tr.votes[cat] += 1
         tr.hits += 1
 
     def _max_age(self, tr: Track) -> float:
-        size = float(np.sqrt(max(1.0, (tr.box[2] - tr.box[0]) * (tr.box[3] - tr.box[1]))))
-        moving = float(np.hypot(tr.velocity[0] + tr.velocity[2], tr.velocity[1] + tr.velocity[3])) / 2
-        return self.max_age_static if moving < 0.1 * size and tr.hits >= 5 else self.max_age
+        moving = float(np.linalg.norm(tr.velocity))
+        return self.max_age_static if moving < 0.1 * tr.size and tr.hits >= 5 else self.max_age
 
     def update(self, dets: Detections, t: float) -> list[Track]:
         """Advance to time ``t``; returns confirmed tracks seen in this frame."""

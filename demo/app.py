@@ -25,7 +25,7 @@ from trafficwatch.viz import EVENT_COLORS  # noqa: E402
 MAX_SECONDS = 120
 MAX_MB = 200
 # CPU-friendly settings: fewer analysed frames, smaller input size
-CPU_SETTINGS = Settings(imgsz=640, stride=4, risk_stride=8, risk_imgsz=640, batch=4)
+CPU_SETTINGS = Settings(imgsz=640, rate=6.0, risk_rate=3.0, risk_imgsz=640, batch=4)
 
 
 def _hex(bgr) -> str:

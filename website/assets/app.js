@@ -32,11 +32,11 @@
 
   /* ---------- class table ---------- */
   const CLASS_RULES = [
-    ["accident", "Two road users reach contact (ground distance < 0.9 body lengths, boxes overlap) after approaching from ≥ 1.5, with an impact-like deceleration or deflection, then stay together.", "first contact → both at rest / leave"],
-    ["near_miss", "Time-to-collision < 1.5 s, closest gap 0.9–1.8 body lengths (no contact), with sharp braking (≤ −1.5 bl/s²) or a swerve (≥ 45°/s).", "evasive action → gap > 2.5"],
+    ["accident", "Contact after a real approach at speed (≥ 1.5 bl/s), an impact stop (speed drops to ≤ 20 % across ~1 s) or a ≥ 45° deflection, then both at rest together for ≥ 2 s. Braking into a queue does not qualify.", "first contact → both at rest / leave"],
+    ["near_miss", "TTC < 1 s on a real collision course (closest point of approach ≤ 0.5 lengths, not side-by-side passing), gap 0.8–1.8 lengths without contact, emergency braking or a ≥ 60°/s swerve.", "evasive action → gap > 2.5"],
     ["red_light", "Front of a vehicle crosses a stop line while its approach is red: vehicle head read directly (away-flow); pedestrian WALK or vehicles held at the line (flow towards camera).", "crossing → leaves junction"],
     ["wrong_way", "Moving > 120° against the legal direction of its carriageway for ≥ 1.2 s and ≥ 1.5 body lengths.", "enters → returns / leaves frame"],
-    ["illegal_u_turn", "Heading reverses by ≥ 150° within 20 s over ≥ 2 body lengths of path.", "starts turning → settles"],
+    ["illegal_u_turn", "Heading, counted only while moving, reverses by ≥ 150° within 20 s over a driven arc of ≥ 2.5 body lengths.", "starts turning → settles"],
     ["stopped_vehicle", "Stationary ≥ 10 s on the carriageway while ≥ 3 moving vehicles pass it (a queue moves as a whole). Buses skipped (bus stop).", "stops → moves / leaves"],
     ["jaywalking", "Pedestrian (not a rider or passenger) with feet on the carriageway, outside crosswalks, for ≥ 1 s.", "steps on → leaves road"],
     ["failure_to_yield", "Vehicle footprint crosses a crosswalk at speed while a pedestrian is on it within 4 body lengths.", "enters → leaves crossing"],

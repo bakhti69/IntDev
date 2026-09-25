@@ -25,10 +25,11 @@ def risk_curve(video_path: str, settings: Settings | None = None,
     settings = settings or Settings()
     info = video_info(video_path)
     est = CausalRisk(settings)
+    stride = settings.risk_stride_for(info.fps)
     curve, last = [], 0.0
     for idx, frame in iter_frames(video_path, 1):
         t = idx / info.fps
-        if idx % settings.risk_stride == 0:
+        if idx % stride == 0:
             last = est.update(frame, t)
             if progress and idx % 50 == 0:
                 progress(idx / max(1, info.n_frames), "risk")

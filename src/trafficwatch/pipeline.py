@@ -131,7 +131,7 @@ def analyze(video_path: str, settings: Settings | None = None,
             progress(min(1.0, (batch[-1][0] + 1) / info.n_frames))
 
     batch: list[tuple[int, np.ndarray]] = []
-    for idx, frame in iter_frames(video_path, settings.stride):
+    for idx, frame in iter_frames(video_path, settings.stride_for(info.fps)):
         batch.append((idx, frame))
         if len(batch) == settings.batch:
             consume(batch)
