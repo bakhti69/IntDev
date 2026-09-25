@@ -162,8 +162,9 @@ def stopped_vehicle(an: Analysis) -> list[Event]:
     (the queue moves as a whole). Buses are skipped: bus-stop dwell.
     """
     events = []
-    # the approach and the box before the junction are where the signal queue stands
-    zones_ok = {"upper", "intersection", "side_road"}
+    # the approach and the box before the junction are where the signal queue stands; on the far
+    # carriageway ("upper") every candidate on the sample videos was kerbside parking
+    zones_ok = {"intersection", "side_road"}
     min_size = SV_MIN_SIZE * an.info.width
     for tr in vehicle_tracks(an, two_wheelers=False):
         if tr.category == "bus" or tr.duration < SV_MIN_DURATION or float(np.median(tr.size)) < min_size:
