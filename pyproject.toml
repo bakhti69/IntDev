@@ -1,0 +1,18 @@
+[project]
+name = "trafficwatch"
+version = "1.0.0"
+description = "Traffic event detection and accident anticipation for a fixed road camera"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["run_submission.py", "evaluate.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["trafficwatch", "conftest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

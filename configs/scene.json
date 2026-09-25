@@ -1,0 +1,72 @@
+{
+  "_comment": "Scene layout of the fixed camera, in pixel coordinates of configs/scene_ref.jpg. At runtime the layout is mapped onto each video by feature registration (src/trafficwatch/scene.py). Check it with: python tools/draw_scene.py --image <frame or video>",
+  "ref_image": "scene_ref.jpg",
+  "ref_size": [1662, 924],
+  "road": {
+    "approach_down": [[45, 110], [100, 95], [480, 236], [740, 334], [800, 386], [250, 446], [150, 350], [100, 250]],
+    "upper": [[110, 88], [250, 55], [700, 172], [1060, 243], [1400, 300], [1662, 335], [1662, 410], [1340, 412], [1030, 440], [985, 410], [760, 322], [480, 222]],
+    "intersection": [[290, 560], [350, 557], [1010, 482], [1130, 468], [1355, 442], [1662, 440], [1662, 924], [780, 924], [715, 845], [580, 750], [440, 655], [300, 610], [265, 587]],
+    "side_road": [[0, 716], [154, 651], [270, 716], [360, 775], [455, 815], [515, 924], [0, 924]],
+    "junction_box": [[250, 446], [800, 386], [1000, 430], [1340, 412], [1355, 442], [1130, 468], [1010, 482], [350, 557], [290, 560]]
+  },
+  "islands": {
+    "median": [[100, 88], [480, 222], [760, 322], [985, 410], [1025, 440], [990, 448], [740, 336], [480, 238], [95, 98]],
+    "triangle_top": [[439, 655], [543, 569], [650, 630]],
+    "triangle_right": [[586, 730], [757, 694], [821, 748], [643, 766]],
+    "triangle_left": [[104, 794], [300, 726], [361, 780]]
+  },
+  "crosswalks": {
+    "main": [[330, 508], [1000, 443], [1340, 412], [1355, 440], [1130, 468], [1010, 482], [350, 557]],
+    "side": [[150, 648], [300, 610], [440, 655], [580, 750], [715, 845], [780, 924], [515, 924], [455, 815], [360, 775], [270, 716]]
+  },
+  "approaches": {
+    "down": {
+      "_comment": "Traffic from the far end of the avenue towards the camera. Its own signal head faces away from the camera, so red is inferred: the pedestrian head for the crosswalk in front of it shows WALK, or vehicles stand still at the head of the queue.",
+      "zone": "approach_down",
+      "direction": [0.92, 0.39],
+      "stop_line": [[250, 446], [800, 386]],
+      "box_zone": [[250, 446], [800, 386], [1010, 482], [350, 557]],
+      "walk_head": "left_pole"
+    },
+    "up": {
+      "_comment": "Traffic leaving the intersection up the avenue (away from the camera). Its vehicle signal head (median pole) faces the camera and is read directly.",
+      "zone": "upper",
+      "direction": [-0.94, -0.35],
+      "stop_line": [[1010, 484], [1400, 445]],
+      "box_zone": [[1010, 484], [1400, 445], [1340, 412], [1000, 443]],
+      "signal_head": "median_pole"
+    }
+  },
+  "wrong_way_zones": {
+    "approach_down": {
+      "polygon": [[45, 110], [100, 95], [480, 236], [740, 334], [800, 386], [250, 446], [150, 350], [100, 250]],
+      "direction": [0.92, 0.39]
+    },
+    "upper": {
+      "polygon": [[110, 88], [250, 55], [700, 172], [960, 225], [960, 392], [760, 322], [480, 222]],
+      "direction": [-0.94, -0.35]
+    }
+  },
+  "signal_lights": {
+    "_comment": "Signal heads facing the camera. Boxes are [x1, y1, x2, y2]. 'pedestrian' heads show a walking/standing figure (red/green only).",
+    "median_pole": {
+      "box": [972, 298, 1018, 348],
+      "kind": "vehicle"
+    },
+    "left_pole": {
+      "box": [220, 400, 254, 446],
+      "kind": "pedestrian"
+    }
+  },
+  "solid_lines": {
+    "_comment": "Solid lane dividers on the approach just before the stop line.",
+    "lane_a": [[130, 285], [215, 342], [355, 432]],
+    "lane_b": [[225, 280], [320, 335], [475, 420]],
+    "lane_c": [[380, 328], [505, 375], [600, 408]],
+    "lane_d": [[560, 342], [660, 382], [700, 398]]
+  },
+  "forbidden_movements": {
+    "_comment": "Pairs [from_zone, to_zone] of movements that are prohibited at this junction (illegal_turn). Empty until confirmed on the sample videos.",
+    "pairs": []
+  }
+}

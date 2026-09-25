@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Labeler</title>
+<meta name="description" content="Label traffic events in local videos and export ground_truth.json for evaluate.py.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='10' y='2' width='12' height='28' rx='4' fill='%23222'/><circle cx='16' cy='9' r='3.2' fill='%23e03131'/><circle cx='16' cy='16' r='3.2' fill='%23f59f00'/><circle cx='16' cy='23' r='3.2' fill='%232b8a3e'/></svg>">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .kbd { font-family: ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 0.8rem; }
+  .classes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .classes button { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 4px 10px; cursor: pointer; font-size: 0.85rem; }
+  .classes button.on { outline: 2px solid var(--ink); }
+  video { width: 100%; border-radius: 8px; background: #000; }
+  td input { width: 80px; }
+</style>
+</head>
+<body>
+<nav class="top"><div class="inner"><a class="brand" href="index.html">🚦 TrafficWatch</a><div class="links"><a href="index.html">← back to site</a></div></div></nav>
+<section>
+  <h2>Event labeler</h2>
+  <p class="muted small">Everything stays in your browser. Load a sample video, mark events with the conventions of the task
+    (start/end per class), export <code>ground_truth.json</code> and score with
+    <code>python evaluate.py --pred predictions_samples.json --gt ground_truth.json --per-video</code>.</p>
+  <div class="grid g2">
+    <div>
+      <div class="btns" style="margin-top:0">
+        <label class="btn primary">Open video<input type="file" id="vid" accept="video/*" hidden></label>
+        <label class="btn">Import JSON<input type="file" id="imp" accept="application/json" hidden></label>
+        <button class="btn" id="exp">Export ground_truth.json</button>
+      </div>
+      <p class="small" id="info"></p>
+      <video id="v" controls playsinline></video>
+      <div id="tl" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="small muted">Class (keys 1–9, 0, q, w, e, r)</div>
+      <div class="classes" id="classes" style="margin:8px 0 12px"></div>
+      <div class="small">
+        <span class="kbd">[</span> start at current time · <span class="kbd">]</span> end → adds event ·
+        <span class="kbd">space</span> play/pause · <span class="kbd">←</span>/<span class="kbd">→</span> ±1 s ·
+        <span class="kbd">,</span>/<span class="kbd">.</span> ±1 frame · <span class="kbd">z</span>/<span class="kbd">x</span> speed
+      </div>
+      <p class="small" id="pending"></p>
+      <label class="small">fps <input id="fps" type="number" value="25" step="0.01" style="width:70px"></label>
+      <div class="table-wrap" style="max-height:420px;overflow:auto;margin-top:8px">
+        <table><thead><tr><th>start</th><th>end</th><th>label</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+<script src="config.js"></script>
+<script src="assets/tw.js"></script>
+<script>
+(() => {
+  const CLASSES = ["accident", "near_miss", "red_light", "wrong_way", "illegal_u_turn", "stopped_vehicle", "jaywalking",
+    "failure_to_yield", "illegal_turn", "solid_line_crossing", "stop_line", "congestion", "road_obstacle", "fire_smoke"];
+  const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "q", "w", "e", "r"];
+  const v = document.getElementById("v"), rows = document.getElementById("rows");
+  let db = {}, name = null, cls = CLASSES[0], start = null, speeds = [0.5, 1, 2, 4], sp = 1;
+  try { db = JSON.parse(localStorage.getItem("tw-labels") || "{}"); } catch (e) { db = {}; }
+  const save = () => { try { localStorage.setItem("tw-labels", JSON.stringify(db)); } catch (e) { /* storage unavailable */ } };
+  const cur = () => (name ? (db[name] ||= { duration: v.duration || 0, fps: +document.getElementById("fps").value, events: [] }) : null);
+
+  const cbox = document.getElementById("classes");
+  CLASSES.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.textContent = `${KEYS[i]} ${c}`; b.onclick = () => setClass(c);
+    b.style.borderColor = (window.TW?.COLORS || {})[c] || "";
+    cbox.append(b);
+  });
+  function setClass(c) { cls = c; [...cbox.children].forEach((b, i) => b.classList.toggle("on", CLASSES[i] === c)); }
+  setClass(cls);
+
+  function render() {
+    const d = cur();
+    rows.innerHTML = "";
+    if (!d) return;
+    d.events.sort((a, b) => a[0] - b[0]).forEach((e, k) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td><input type="number" step="0.04" value="${e[0].toFixed(2)}"></td><td><input type="number" step="0.04" value="${e[1].toFixed(2)}"></td><td>${e[2]}</td><td><button class="btn" style="padding:2px 8px">✕</button></td>`;
+      const [s, en] = tr.querySelectorAll("input");
+      s.onchange = () => { e[0] = +s.value; save(); render(); };
+      en.onchange = () => { e[1] = +en.value; save(); render(); };
+      tr.querySelector("button").onclick = () => { d.events.splice(k, 1); save(); render(); };
+      tr.ondblclick = () => { v.currentTime = e[0]; };
+      rows.append(tr);
+    });
+    const tl = document.getElementById("tl");
+    tl.innerHTML = "";
+    if (window.TW && v.duration) tl.append(window.TW.timelineSVG(d.events, v.duration, { onClick: (e) => { v.currentTime = e[0]; } }));
+    document.getElementById("info").textContent = `${name} · ${d.events.length} events · ${Object.keys(db).length} video(s) labelled`;
+  }
+
+  document.getElementById("vid").onchange = (ev) => {
+    const f = ev.target.files[0]; if (!f) return;
+    name = f.name; v.src = URL.createObjectURL(f);
+    v.onloadedmetadata = () => { cur().duration = +v.duration.toFixed(3); save(); render(); };
+  };
+  document.getElementById("imp").onchange = async (ev) => {
+    const f = ev.target.files[0]; if (!f) return;
+    const data = JSON.parse(await f.text());
+    Object.assign(db, data.videos ? Object.fromEntries(Object.entries(data.videos).map(([k, x]) => [k, { duration: 0, fps: 25, events: x.events }])) : data);
+    save(); render();
+  };
+  document.getElementById("exp").onclick = () => {
+    const blob = new Blob([JSON.stringify(db, null, 1)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "ground_truth.json"; a.click();
+  };
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || !name) return;
+    const fps = +document.getElementById("fps").value || 25;
+    const i = KEYS.indexOf(e.key.toLowerCase());
+    if (i >= 0) { setClass(CLASSES[i]); return; }
+    if (e.key === " ") { e.preventDefault(); v.paused ? v.play() : v.pause(); }
+    else if (e.key === "ArrowRight") v.currentTime += 1;
+    else if (e.key === "ArrowLeft") v.currentTime -= 1;
+    else if (e.key === ".") v.currentTime += 1 / fps;
+    else if (e.key === ",") v.currentTime -= 1 / fps;
+    else if (e.key === "z" || e.key === "x") { sp = Math.max(0, Math.min(speeds.length - 1, sp + (e.key === "x" ? 1 : -1))); v.playbackRate = speeds[sp]; }
+    else if (e.key === "[") start = v.currentTime;
+    else if (e.key === "]" && start != null && v.currentTime > start) {
+      const d = cur();
+      // same-class segments must not overlap: merge into the existing one
+      const hit = d.events.find((x) => x[2] === cls && x[0] <= v.currentTime && start <= x[1]);
+      if (hit) { hit[0] = Math.min(hit[0], start); hit[1] = Math.max(hit[1], v.currentTime); }
+      else d.events.push([+start.toFixed(3), +v.currentTime.toFixed(3), cls]);
+      start = null; save(); render();
+    }
+    document.getElementById("pending").textContent = start != null ? `start marked at ${start.toFixed(2)} s — press ] at the end (${cls})` : "";
+  });
+  v.addEventListener("timeupdate", () => window.TW && window.TW.moveCursors(document.getElementById("tl"), v.currentTime));
+})();
+</script>
+</body>
+</html>
