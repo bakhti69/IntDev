@@ -18,7 +18,9 @@ WW_MIN_TRAVEL = 1.5         # body sizes travelled against the flow
 # illegal_u_turn
 UT_MAX_WINDOW = 20.0        # s to complete the turn
 UT_MIN_TURN = np.deg2rad(150)
-UT_MIN_PATH = 2.0           # body sizes
+UT_MIN_PATH = 2.5           # body lengths driven during the turn
+UT_MIN_EXCURSION = 1.0      # body lengths away from where the turn starts
+UT_MIN_SPEED = 0.5          # heading only counts while really moving
 # stopped_vehicle
 SV_MAX_SPEED = 0.12
 SV_MIN_DURATION = 10.0
@@ -44,8 +46,10 @@ def wrong_way(an: Analysis) -> list[Event]:
     return events
 
 
-def _unwrapped_heading(tr: TrackData) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    ok = ~np.isnan(tr.heading)
+def _unwrapped_heading(tr: TrackData, min_speed: float = 0.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Heading over the samples where the vehicle really moves (jitter of a queued car
+    flips its heading at random)."""
+    ok = ~np.isnan(tr.heading) & (tr.speed >= min_speed)
     return tr.t[ok], np.unwrap(tr.heading[ok]), np.where(ok)[0]
 
 
@@ -58,8 +62,12 @@ def _u_turn_span(tr: TrackData, t: np.ndarray, th: np.ndarray, idx: np.ndarray) 
         a = lo + int(np.argmax(np.abs(th[lo:j + 1] - th[j])))
         if abs(th[j] - th[a]) < UT_MIN_TURN:
             continue
-        path = np.sum(np.linalg.norm(np.diff(tr.pos[idx[a]:idx[j] + 1], axis=0), axis=1))
-        if path / np.median(tr.size[idx[a]:idx[j] + 1]) < UT_MIN_PATH:
+        # driven arc: moving samples only, and the vehicle really goes out and comes back
+        moving = tr.pos[idx[a:j + 1]]
+        size = float(np.median(tr.size[idx[a]:idx[j] + 1]))
+        path = np.sum(np.linalg.norm(np.diff(moving, axis=0), axis=1)) / size
+        excursion = np.max(np.linalg.norm(moving - moving[0], axis=1)) / size
+        if path < UT_MIN_PATH or excursion < UT_MIN_EXCURSION:
             continue
         # extend while the vehicle is still turning, then trim both ends to the turn itself
         end = j
@@ -75,7 +83,7 @@ def illegal_u_turn(an: Analysis) -> list[Event]:
     """Heading reverses by >= 150 deg within 20 s while travelling >= 2 body sizes."""
     events = []
     for tr in vehicle_tracks(an):
-        t, th, idx = _unwrapped_heading(tr)
+        t, th, idx = _unwrapped_heading(tr, UT_MIN_SPEED)
         if len(t) < 10:
             continue
         span = _u_turn_span(tr, t, th, idx)
