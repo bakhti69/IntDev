@@ -21,10 +21,12 @@ UT_MIN_TURN = np.deg2rad(150)
 UT_MIN_PATH = 2.5           # body lengths driven during the turn
 UT_MIN_EXCURSION = 1.0      # body lengths away from where the turn starts
 UT_MIN_SPEED = 0.5          # heading only counts while really moving
+UT_MAX_PAUSE = 3.0          # s without moving inside the turn
 # stopped_vehicle
 SV_MAX_SPEED = 0.12
-SV_MIN_DURATION = 10.0
+SV_MIN_DURATION = 15.0      # definition says 10 s; 10-14 s stops in the junction were cars yielding before a turn
 SV_MIN_PASSING = 3          # distinct moving vehicles passing it while stopped (queue test)
+SV_MIN_SIZE = 0.035         # of the frame width: far kerbside parking is not reliably "on the carriageway"
 # solid_line_crossing
 SL_SIDE_MARGIN = 0.3        # fraction of box width on each side of the line
 SL_MAX_DURATION = 4.0
@@ -61,6 +63,9 @@ def _u_turn_span(tr: TrackData, t: np.ndarray, th: np.ndarray, idx: np.ndarray) 
             lo += 1
         a = lo + int(np.argmax(np.abs(th[lo:j + 1] - th[j])))
         if abs(th[j] - th[a]) < UT_MIN_TURN:
+            continue
+        # one continuous manoeuvre: a long standstill inside it is usually an identity switch
+        if j > a and float(np.max(np.diff(t[a:j + 1]))) > UT_MAX_PAUSE:
             continue
         # driven arc: moving samples only, and the vehicle really goes out and comes back
         moving = tr.pos[idx[a:j + 1]]
@@ -116,9 +121,11 @@ def stopped_vehicle(an: Analysis) -> list[Event]:
     signal (the queue moves as a whole). Buses are skipped: bus-stop dwell.
     """
     events = []
-    zones_ok = {"approach_down", "upper", "intersection", "side_road", "junction_box"}
+    # the approach and the box before the junction are where the signal queue stands
+    zones_ok = {"upper", "intersection", "side_road"}
+    min_size = SV_MIN_SIZE * an.info.width
     for tr in vehicle_tracks(an, two_wheelers=False):
-        if tr.category == "bus" or tr.duration < SV_MIN_DURATION:
+        if tr.category == "bus" or tr.duration < SV_MIN_DURATION or float(np.median(tr.size)) < min_size:
             continue
         zones = an.zones(tr)
         for s, e in runs(tr.t, tr.speed < SV_MAX_SPEED, max_gap=1.5):

@@ -34,7 +34,6 @@ class Approach:
     stop_line: np.ndarray        # (2, 2) endpoints
     box_zone: np.ndarray         # polygon between stop line and intersection
     signal_head: str | None      # vehicle signal head read directly, if it faces the camera
-    walk_head: str | None        # pedestrian head whose WALK implies red for this approach
 
 
 @dataclass
@@ -210,7 +209,7 @@ def load_scene(frame_bgr: np.ndarray | None, width: int, height: int,
     approaches = {
         name: Approach(name=name, zone=a["zone"], direction=unit(a["direction"]),
                        stop_line=tp(a["stop_line"]), box_zone=tp(a["box_zone"]),
-                       signal_head=a.get("signal_head"), walk_head=a.get("walk_head"))
+                       signal_head=a.get("signal_head"))
         for name, a in cfg["approaches"].items()
     }
     return Scene(

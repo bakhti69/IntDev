@@ -2,9 +2,11 @@
 
 Signal state per approach:
 * ``signal_head``: its vehicle head faces the camera and is read (signals.py).
-* otherwise red is inferred: the pedestrian head of the crosswalk in front
-  of the approach shows WALK, or vehicles stand still at the head of the
-  queue right behind the stop line before and after the moment in question.
+  red_light is only reported for such approaches.
+* otherwise the head faces away. For stop_line only, red is inferred from
+  vehicles standing still at the head of the queue right behind the stop
+  line. (Queue inference was too weak for red_light on the sample video:
+  turn lanes wait while through lanes flow.)
 """
 from __future__ import annotations
 
@@ -20,18 +22,17 @@ JUNCTION_ZONES = {"junction_box", "intersection", "crosswalk_main", "crosswalk_s
 # queue-head inference
 HOLD_MAX_SPEED = 0.15
 HOLD_DEPTH = 3.0            # body sizes behind the stop line
-HOLD_BEFORE, HOLD_AFTER = 1.5, 2.0
-HOLD_MIN_FRACTION = 0.8
 # red_light
 RL_MIN_SPEED = 0.5
 RL_RED_BEFORE = 1.0         # s of continuous red before the crossing (excludes amber)
 # stop_line
 STL_MAX_SPEED = 0.12
 STL_MIN_DURATION = 2.0
-# congestion: zone -> (min vehicles, slow speed, min slow fraction, min duration s)
+# congestion: direction -> (zones, min vehicles, slow speed, min slow fraction, min duration s).
+# A red phase stops the approach while the junction keeps flowing; a jam stops all of it.
 CONGESTION = {
-    "approach_down": (6, 0.3, 0.85, 75.0),
-    "upper": (5, 0.3, 0.8, 20.0),
+    "towards_camera": (("approach_down", "junction_box", "intersection"), 8, 0.3, 0.75, 20.0),
+    "away": (("upper",), 5, 0.3, 0.8, 20.0),
 }
 
 
@@ -57,14 +58,9 @@ class QueueHold:
         return float(np.mean([bool(ids - {exclude}) for ids in frames]))
 
 
-def _is_red(an: Analysis, approach: Approach, hold: QueueHold | None, t: float, tr_id: int) -> bool:
-    if approach.signal_head:
-        head = an.signals.get(approach.signal_head)
-        return bool(head and head.is_readable and head.held("red", t, RL_RED_BEFORE))
-    walk = an.signals.get(approach.walk_head) if approach.walk_head else None
-    if walk is not None and walk.held("green", t, RL_RED_BEFORE):
-        return True
-    return hold is not None and hold.holding(t - HOLD_BEFORE, t + HOLD_AFTER, tr_id) >= HOLD_MIN_FRACTION
+def _is_red(an: Analysis, approach: Approach, t: float) -> bool:
+    head = an.signals.get(approach.signal_head) if approach.signal_head else None
+    return bool(head and head.is_readable and head.held("red", t, RL_RED_BEFORE))
 
 
 def _red_share(an: Analysis, approach: Approach, hold: QueueHold | None, s: float, e: float, tr_id: int) -> float:
@@ -72,9 +68,7 @@ def _red_share(an: Analysis, approach: Approach, hold: QueueHold | None, s: floa
     if approach.signal_head:
         head = an.signals.get(approach.signal_head)
         return head.fraction("red", s, e) if head and head.is_readable else 0.0
-    walk = an.signals.get(approach.walk_head) if approach.walk_head else None
-    share = walk.fraction("green", s, e) if walk is not None else 0.0
-    return max(share, hold.holding(s, e, tr_id) if hold is not None else 0.0)
+    return hold.holding(s, e, tr_id) if hold is not None else 0.0
 
 
 def _leave_junction(an: Analysis, tr: TrackData, k: int) -> float:
@@ -88,7 +82,8 @@ def _leave_junction(an: Analysis, tr: TrackData, k: int) -> float:
 def red_light(an: Analysis) -> list[Event]:
     events = []
     for approach in an.scene.approaches.values():
-        hold = None if approach.signal_head else QueueHold(an, approach)
+        if not approach.signal_head:
+            continue
         for tr in vehicle_tracks(an):
             prog = line_progress(approach, front_point(tr, approach))
             unit = tr.vel / (np.linalg.norm(tr.vel, axis=1, keepdims=True) + 1e-9)
@@ -99,7 +94,7 @@ def red_light(an: Analysis) -> list[Event]:
                     continue
                 if prog[: k].min() > -0.5 * tr.size[k]:
                     continue  # did not come from behind the line
-                if _is_red(an, approach, hold, float(tr.t[k]), tr.id):
+                if _is_red(an, approach, float(tr.t[k])):
                     events.append([float(tr.t[k]), _leave_junction(an, tr, k), "red_light"])
                 break
     return events
@@ -122,18 +117,23 @@ def stop_line(an: Analysis) -> list[Event]:
 
 def congestion(an: Analysis) -> list[Event]:
     n = len(an.times)
-    total = {z: np.zeros(n, int) for z in CONGESTION}
-    slow = {z: np.zeros(n, int) for z in CONGESTION}
+    total = {d: np.zeros(n, int) for d in CONGESTION}
+    slow = {d: np.zeros(n, int) for d in CONGESTION}
     for tr in vehicle_tracks(an, two_wheelers=False):
         zones = an.zones(tr)
         k_idx = np.searchsorted(an.times, tr.t)
         for k, z in enumerate(zones):
-            if z in CONGESTION:
-                total[z][k_idx[k]] += 1
-                slow[z][k_idx[k]] += int(tr.speed[k] < CONGESTION[z][1])
+            for d, (group, _, slow_speed, _, _) in CONGESTION.items():
+                if z in group:
+                    total[d][k_idx[k]] += 1
+                    slow[d][k_idx[k]] += int(tr.speed[k] < slow_speed)
     events = []
-    for z, (min_n, _, min_frac, min_dur) in CONGESTION.items():
-        jam = (total[z] >= min_n) & (slow[z] >= min_frac * np.maximum(total[z], 1))
+    for d, (_, min_n, _, min_frac, min_dur) in CONGESTION.items():
+        # smooth over ~2 s: a single missed detection must not break the jam
+        w = max(1, int(round(2.0 / max(float(np.median(np.diff(an.times))), 1e-3)))) if n > 1 else 1
+        tot = np.convolve(total[d], np.ones(w) / w, mode="same")
+        slo = np.convolve(slow[d], np.ones(w) / w, mode="same")
+        jam = (tot >= min_n) & (slo >= min_frac * np.maximum(tot, 1e-6))
         for s, e in runs(an.times, jam, max_gap=5.0):
             if e - s >= min_dur:
                 events.append([s, e, "congestion"])

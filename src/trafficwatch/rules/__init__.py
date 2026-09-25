@@ -31,7 +31,7 @@ RULES: dict[str, Callable[[Analysis], list]] = {
 }
 
 # post-processing per class: bridge gaps shorter than MERGE_GAP, drop segments shorter than MIN_LEN
-MERGE_GAP = {"jaywalking": 1.5, "congestion": 5.0, "stopped_vehicle": 2.0, "accident": 2.0,
+MERGE_GAP = {"jaywalking": 1.5, "red_light": 2.0, "congestion": 5.0, "stopped_vehicle": 2.0, "accident": 2.0,
              "road_obstacle": 3.0, "fire_smoke": 3.0}
 MIN_LEN = {"stopped_vehicle": 10.0, "congestion": 15.0, "jaywalking": 1.0, "red_light": 0.5,
            "accident": 0.5, "near_miss": 0.5, "failure_to_yield": 0.3}

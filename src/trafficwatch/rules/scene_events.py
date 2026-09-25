@@ -14,12 +14,12 @@ OBS_EVAL_PERIOD = 1.0        # s between evaluations
 OBS_PAST = (-40.0, -15.0)    # background window relative to t
 OBS_FUTURE = 8.0             # the new object must stay this long
 OBS_DIFF = 32                # grey levels
-OBS_MAX_COVERAGE = 0.15      # pixels often under detected road users are ignored
-OBS_AREA = (0.0002, 0.006)   # blob area as a fraction of the (cue) frame
+OBS_MAX_COVERAGE = 0.05      # pixels ever under detected road users (people waiting, parked cars) are ignored
+OBS_AREA = (0.0006, 0.006)   # blob area as a fraction of the (cue) frame
 OBS_MAX_DRIFT = 6.0          # cue px of global view drift we compensate
 OBS_MIN_FILL = 0.35          # debris is blob-like; fragments of lane markings are not
 OBS_MAX_ASPECT = 4.0
-OBS_MIN_PERSIST = 5.0        # s
+OBS_MIN_PERSIST = 8.0        # s
 # fire_smoke
 FIRE_WINDOW = 3.0            # s
 FIRE_MIN_AREA = 0.0004       # fraction of the cue frame
