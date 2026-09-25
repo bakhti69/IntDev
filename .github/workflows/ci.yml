@@ -1,0 +1,13 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      # the rules and tests need no detector: install the light dependencies only
+      - run: pip install numpy==2.4.6 opencv-python-headless==5.0.0.93 scipy==1.17.1 pytest ruff
+      - run: ruff check .
+      - run: pytest -q

@@ -14,22 +14,36 @@ WEIGHTS_DIR = ROOT / "weights"
 SEED = 0
 
 
-def _env(name: str, default):
+def _has_gpu() -> bool:
+    if os.environ.get("TW_DEVICE", "").startswith("cpu"):
+        return False
+    try:
+        import torch
+        return torch.cuda.is_available()
+    except ImportError:
+        return False
+
+
+def _env(name: str, gpu_default, cpu_default=None):
+    """Environment override, else the GPU default, else (no GPU) a lighter CPU default
+    that keeps a 1080p video inside the 3x-duration time budget."""
     raw = os.environ.get(name)
-    return type(default)(raw) if raw not in (None, "") else default
+    if raw not in (None, ""):
+        return type(gpu_default)(raw)
+    return gpu_default if cpu_default is None or _has_gpu() else cpu_default
 
 
 @dataclass(frozen=True)
 class Settings:
     weights: str = field(default_factory=lambda: _env("TW_WEIGHTS", str(WEIGHTS_DIR / "yolo11s.pt")))
-    imgsz: int = field(default_factory=lambda: _env("TW_IMGSZ", 960))
+    imgsz: int = field(default_factory=lambda: _env("TW_IMGSZ", 960, 640))
     device: str = field(default_factory=lambda: _env("TW_DEVICE", ""))
     # Part A: analyse every n-th frame (25 fps / 2 = 12.5 Hz)
-    stride: int = field(default_factory=lambda: _env("TW_STRIDE", 2))
-    batch: int = field(default_factory=lambda: _env("TW_BATCH", 8))
+    stride: int = field(default_factory=lambda: _env("TW_STRIDE", 2, 3))
+    batch: int = field(default_factory=lambda: _env("TW_BATCH", 8, 4))
     # Part B: run the detector on every n-th frame, hold the score in between
-    risk_stride: int = field(default_factory=lambda: _env("TW_RISK_STRIDE", 3))
-    risk_imgsz: int = field(default_factory=lambda: _env("TW_RISK_IMGSZ", 960))
+    risk_stride: int = field(default_factory=lambda: _env("TW_RISK_STRIDE", 3, 6))
+    risk_imgsz: int = field(default_factory=lambda: _env("TW_RISK_IMGSZ", 960, 640))
 
     @property
     def device_or_none(self) -> str | None:
