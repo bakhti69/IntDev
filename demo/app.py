@@ -1,11 +1,14 @@
 """Live demo: upload a clip from the camera, get the events, an annotated
 playback, the event timeline and the accident-risk curve.
 
-Runs on CPU (e.g. a free Hugging Face Space):  python demo/app.py
+Locally:            python demo/app.py
+Public link:        TW_SHARE=1 python demo/app.py      (a temporary *.gradio.live URL)
+Google Colab (GPU): open demo/colab.ipynb and run all cells
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -17,15 +20,16 @@ ROOT = HERE if (HERE / "src").is_dir() else HERE.parent   # repo checkout or bun
 sys.path.insert(0, str(ROOT / "src"))
 
 from trafficwatch.api import process  # noqa: E402
-from trafficwatch.config import Settings  # noqa: E402
+from trafficwatch.config import Settings, _has_gpu  # noqa: E402
 from trafficwatch.render import render  # noqa: E402
 from trafficwatch.video import video_info  # noqa: E402
 from trafficwatch.viz import EVENT_COLORS  # noqa: E402
 
-MAX_SECONDS = 120
-MAX_MB = 200
-# CPU-friendly settings: fewer analysed frames, smaller input size
-CPU_SETTINGS = Settings(imgsz=640, rate=6.0, risk_rate=3.0, risk_imgsz=640, batch=4)
+GPU = _has_gpu()
+MAX_SECONDS = 300 if GPU else 120
+MAX_MB = 1000 if GPU else 200
+# on a GPU the submission settings; on CPU fewer analysed frames and a smaller input size
+SETTINGS = Settings() if GPU else Settings(imgsz=640, rate=6.0, risk_rate=3.0, risk_imgsz=640, batch=4)
 
 
 def _hex(bgr) -> str:
@@ -88,7 +92,7 @@ def run(video_path: str | None, with_risk: bool, progress=gr.Progress()):
         span = {"detect": (0.0, 0.55), "risk": (0.55, 0.85)}[stage]
         progress(span[0] + frac * (span[1] - span[0]), desc=f"{stage}…")
 
-    rep = process(video_path, CPU_SETTINGS, risk=None if with_risk else [], progress=report)
+    rep = process(video_path, SETTINGS, risk=None if with_risk else [], progress=report)
     progress(0.87, desc="rendering…")
     out_dir = Path(tempfile.mkdtemp(prefix="trafficwatch_"))
     video_out = render(rep.analysis, rep.events, rep.risk or None, out_dir / "annotated.mp4")
@@ -109,8 +113,9 @@ with gr.Blocks(title="TrafficWatch – live demo") as demo:
         "## TrafficWatch — traffic events & accident anticipation\n"
         f"Upload an **.mp4 up to {MAX_SECONDS} s / {MAX_MB} MB** from the competition camera. "
         "The scene layout (lanes, stop line, crosswalks) is calibrated for that camera; other views "
-        "still run but zone-based classes will be unreliable. CPU inference: expect roughly "
-        "2× the clip length."
+        "still run but zone-based classes will be unreliable. "
+        + ("GPU inference: expect well under the clip length." if GPU
+           else "CPU inference: expect roughly 2× the clip length.")
     )
     with gr.Row():
         inp = gr.Video(label="Input clip", sources=["upload"])
@@ -129,4 +134,4 @@ with gr.Blocks(title="TrafficWatch – live demo") as demo:
               api_name="detect", concurrency_limit=1)
 
 if __name__ == "__main__":
-    demo.queue(max_size=8).launch(server_name="0.0.0.0")
+    demo.queue(max_size=8).launch(server_name="0.0.0.0", share=os.environ.get("TW_SHARE") == "1")

@@ -115,7 +115,7 @@ src/trafficwatch/
   api.py                     shared entry points for the website builder and the demo
 tools/                       draw_scene.py, frame_eda.py, build_site_data.py
 tests/                       every rule on synthetic trajectories drawn on the real layout; signals on real frames
-demo/                        Gradio live demo + Hugging Face Space bundler
+demo/                        Gradio live demo, Colab notebook, Hugging Face Space bundler
 website/                     static team website (GitHub Pages), labeling tool for dev sets
 ```
 
@@ -191,8 +191,13 @@ Build a dev set with the labeling page (`website/labeler.html`, runs locally in 
 
 * Website: `website/` is static; `.github/workflows/pages.yml` publishes it with GitHub Pages. Fill in the team in
   `website/config.js`.
-* Live demo: `bash demo/build_space.sh space/` builds a Hugging Face Space (Gradio, CPU); push it and set
-  `space` in `website/config.js`. Locally: `python demo/app.py`.
+* Live demo (Gradio, `demo/app.py`):
+  * Google Colab, free T4 GPU: open `demo/colab.ipynb` (the website links to it) and *Run all*; it prints a
+    public `https://….gradio.live` link. Paste that link into `demo` in `website/config.js` to enable the
+    website's upload box while the notebook runs.
+  * Locally: `python demo/app.py`, or `TW_SHARE=1 python demo/app.py` for a temporary public link.
+  * Hugging Face Space (Gradio Spaces need a paid plan): `bash demo/build_space.sh space/`, push it, and set
+    `demo` to `"user/space"`.
 
 ## Datasets, models and licences
 

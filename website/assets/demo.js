@@ -1,4 +1,4 @@
-// Live demo: sends the upload to the Hugging Face Space (demo/app.py, endpoint /detect)
+// Live demo: sends the upload to a running demo/app.py (Colab share link or HF Space, endpoint /detect)
 // and renders the answer with the same timeline / risk components as the results section.
 // Loaded lazily so that a blocked CDN shows an error instead of breaking the page.
 const CLIENT_URL = window.GRADIO_CLIENT_URL || "https://cdn.jsdelivr.net/npm/@gradio/client@2.7.0/dist/index.min.js";
@@ -10,8 +10,13 @@ let file = null;
 
 const status = (msg) => { $("#demo-status").textContent = msg; };
 const bar = $("#demo-progress");
-const spaceUrl = `https://huggingface.co/spaces/${S.space}`;
-$("#demo-fallback").innerHTML = `Demo backend: <a href="${spaceUrl}" target="_blank" rel="noopener">${S.space}</a> on Hugging Face Spaces (also usable directly there).`;
+const repoPath = (S.repo || "").replace(/^https:\/\/github\.com\//, "");
+const colabUrl = `https://colab.research.google.com/github/${repoPath}/blob/${S.branch || "main"}/demo/colab.ipynb`;
+const demoUrl = !S.demo ? "" : /^https?:/.test(S.demo) ? S.demo : `https://huggingface.co/spaces/${S.demo}`;
+$("#colab").href = colabUrl;
+$("#demo-fallback").innerHTML = S.demo
+  ? `Demo server: <a href="${demoUrl}" target="_blank" rel="noopener">${demoUrl}</a> (also usable directly there).`
+  : "The upload box needs a running demo server; start one for free with the Colab notebook above.";
 
 function pick(f) {
   if (!f) return;
@@ -44,9 +49,10 @@ $("#run").addEventListener("click", async () => {
   $("#demo-out").innerHTML = "";
   bar.hidden = false; bar.removeAttribute("value");
   try {
-    status("Connecting to the model server (a sleeping Space can take ~1 min to wake)…");
+    if (!S.demo) throw new Error("no demo server is running right now");
+    status("Connecting to the model server…");
     const { Client, handle_file } = await import(CLIENT_URL);
-    const app = await Client.connect(S.space);
+    const app = await Client.connect(S.demo);
     status("Uploading…");
     const job = app.submit("/detect", { video_path: handle_file(file), with_risk: $("#with-risk").checked });
     let data = null;
@@ -80,7 +86,7 @@ $("#run").addEventListener("click", async () => {
     video.addEventListener("timeupdate", () => TW.moveCursors(out, video.currentTime));
     status(note);
   } catch (err) {
-    status(`Demo failed: ${err.message || err}. You can also try it directly on ${spaceUrl}`);
+    status(`Demo failed: ${err.message || err}. Run it yourself in Google Colab: ${colabUrl}`);
   } finally {
     bar.hidden = true;
     $("#run").disabled = false;

@@ -2,8 +2,11 @@
 window.SITE = {
   team: "TrafficWatch",
   repo: "https://github.com/bakhti69/IntDev",
-  // Hugging Face Space running demo/app.py ("user/space-name"); see demo/build_space.sh
-  space: "YOUR-HF-USER/trafficwatch",
+  branch: "main",
+  // Running demo/app.py server for the upload box on this page: a "https://....gradio.live" link from
+  // demo/colab.ipynb (valid while the notebook runs) or a Hugging Face Space id "user/space".
+  // Empty: the page offers the Colab notebook only.
+  demo: "",
   // TODO(team): fill in real names, roles, contributions and links.
   members: [
     {

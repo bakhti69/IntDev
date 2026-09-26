@@ -131,8 +131,11 @@
 
 <section id="demo">
   <h2>Live demo</h2>
-  <p>Upload an <b>.mp4 up to 2 minutes and 200 MB</b> from this camera. It runs on a free CPU instance, so
-    expect roughly twice the clip length; progress is shown below.</p>
+  <p>Run the full model on a free Google Colab T4 GPU: open the notebook, choose <i>Runtime → Run all</i>,
+    and use the app at the <code>gradio.live</code> link it prints (about 3 minutes to start).</p>
+  <div class="btns" style="margin-bottom:12px"><a class="btn primary" id="colab" target="_blank" rel="noopener">Open the demo in Colab</a></div>
+  <p>When a demo server is running, you can also upload an <b>.mp4 up to 2 minutes and 200 MB</b> from
+    this camera right here; progress is shown below.</p>
   <div class="card">
     <div class="drop" id="drop">Drop an .mp4 here or <label class="btn" style="margin-left:6px">choose file<input type="file" id="file" accept="video/mp4" hidden></label>
       <div class="small" id="file-name" style="margin-top:8px"></div></div>
