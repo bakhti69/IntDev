@@ -227,9 +227,11 @@ implementation. Because Ultralytics is AGPL-3.0, this project is distributed und
 
 Team **IntDev**
 
-| Member | Links |
-|---|---|
-| Parpiyev Baxtiyorjon | [github.com/bakhti69](https://github.com/bakhti69) |
+| Member | Role | Links |
+|---|---|---|
+| Sadullayeva Mohiraxon | Team captain | [github.com/mokhiraxon555-prog](https://github.com/mokhiraxon555-prog) |
+| Parpiyev Baxtiyorjon | | [github.com/bakhti69](https://github.com/bakhti69) |
+| Xusenov Shoxrux | | [github.com/antoniobanderes496](https://github.com/antoniobanderes496) |
 
 ## Limitations
 

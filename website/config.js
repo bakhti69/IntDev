@@ -8,6 +8,8 @@ window.SITE = {
   // Empty: the page offers the Colab notebook only.
   demo: "",
   members: [
+    { name: "Sadullayeva Mohiraxon", role: "Team captain", did: "", github: "https://github.com/mokhiraxon555-prog", linkedin: "", portfolio: "", proud: "" },
     { name: "Parpiyev Baxtiyorjon", role: "", did: "", github: "https://github.com/bakhti69", linkedin: "", portfolio: "", proud: "" },
+    { name: "Xusenov Shoxrux", role: "", did: "", github: "https://github.com/antoniobanderes496", linkedin: "", portfolio: "", proud: "" },
   ],
 };
