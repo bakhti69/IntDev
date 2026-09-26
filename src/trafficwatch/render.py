@@ -50,12 +50,12 @@ def _draw_timeline(frame: np.ndarray, t: float, duration: float, events: list[li
 
 
 def render(an: Analysis, events: list[list], risk: list[list] | None, out_path: str | Path,
-           max_width: int = 960, out_stride: int = 2) -> Path:
+           max_width: int = 960, out_stride: int = 2, crf: int = 28) -> Path:
     """Write the annotated video; ``risk`` is the harness curve [[t, score], ...]."""
     info = an.info
     scale = min(1.0, max_width / info.width)
     w, h = int(info.width * scale) // 2 * 2, int(info.height * scale) // 2 * 2
-    writer = H264Writer(out_path, w, h + TIMELINE_H, info.fps / out_stride)
+    writer = H264Writer(out_path, w, h + TIMELINE_H, info.fps / out_stride, crf=crf)
 
     by_time: dict[float, list] = {}
     for tr in an.tracks:

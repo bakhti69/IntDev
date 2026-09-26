@@ -26,17 +26,27 @@ def main() -> int:
     ap.add_argument("--videos", required=True, help="folder with .mp4 files")
     ap.add_argument("--pred", help="predictions.json from run_submission.py (else computed here)")
     ap.add_argument("--site", default="website")
+    # GitHub rejects files over 100 MB: 640 px at 10 fps keeps a 17-minute video around 40-80 MB
+    ap.add_argument("--video-width", type=int, default=640, help="annotated video width in px")
+    ap.add_argument("--video-fps", type=float, default=10.0, help="annotated video frame rate")
+    ap.add_argument("--crf", type=int, default=32, help="x264 quality (higher = smaller file)")
     args = ap.parse_args()
 
     pred = json.loads(Path(args.pred).read_text())["videos"] if args.pred else {}
     site = Path(args.site)
     (site / "data").mkdir(parents=True, exist_ok=True)
     manifest = []
-    for video in sorted(Path(args.videos).glob("*.mp4")):
+    videos = sorted(v for v in Path(args.videos).iterdir() if v.suffix.lower() == ".mp4")
+    for video in videos:
         print(f"[{video.name}] processing")
         p = pred.get(video.name, {})
         report = process(str(video), events=p.get("events"), risk=p.get("risk") or None)
-        files = export_media(report, site / "media", video.stem)
+        stride = max(1, round(report.analysis.info.fps / args.video_fps))
+        files = export_media(report, site / "media", video.stem, video_width=args.video_width,
+                             video_stride=stride, crf=args.crf)
+        mb = (site / "media" / files["video"]).stat().st_size / 1e6
+        warn = "  WARNING: over GitHub's 100 MB limit, rerun with a higher --crf" if mb > 95 else ""
+        print(f"[{video.name}] annotated video {mb:.1f} MB{warn}")
         payload = web_payload(report, video.name, files)
         (site / "data" / f"{video.stem}.json").write_text(json.dumps(payload, separators=(",", ":")))
         manifest.append({"name": video.name, "stem": video.stem, "duration": report.analysis.info.duration,
