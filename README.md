@@ -142,6 +142,17 @@ Diagnosis and fixes:
 
 Result on the same clip: 10 events instead of 19, no accidents, alarm share 49 % → 1.8 %.
 
+### Part B on the full sample videos: too many alarms
+
+On the four full videos the alarm (score ≥ 0.5) still started about 5 times a minute. The pairs behind it were
+cars whose ground points already coincided in the image (one passing in front of the other) and moving cars
+passing a queued car in the next lane, which in this oblique view seem to drive through it; in dense traffic
+several weak pairs also added up to an alarm. Fixes: a pair must still have a gap (≥ 0.6 lengths) to count as a
+collision course, the closest approach towards a standing road user must be tighter (0.2 instead of 0.35
+lengths), and the score is the strongest single pair instead of the combination of all. Alarm starts per
+minute: dev clip 5.3 → 0, C3897 5.3 → 1.3; the lead time on simulated crossing, rear-end and head-on
+collisions is unchanged (`tests/test_risk.py`).
+
 ### Dev set: first labelled sample clip (67 s, 8 labelled events)
 
 Scored with the official `evaluate.py` against our own labels (built with `website/labeler.html`):
