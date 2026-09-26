@@ -30,7 +30,7 @@ python evaluate.py --pred predictions.json --validate-only
 ### Reproduce `predictions_samples.json` and the website data
 
 ```bash
-python run_submission.py --videos samples --out predictions_samples.json --team trafficwatch
+python run_submission.py --videos samples --out predictions_samples.json --team IntDev
 pip install -r requirements-tools.txt
 python tools/build_site_data.py --videos samples --pred predictions_samples.json --site website
 python tools/frame_eda.py --frames docs/frames --site website
@@ -214,12 +214,11 @@ implementation. Because Ultralytics is AGPL-3.0, this project is distributed und
 
 ## Team
 
-<!-- TODO(team): real names, roles and contributions; keep in sync with website/config.js -->
-| Member | Role | Contributions |
-|---|---|---|
-| Member 1 | Detection & tracking | detector, tracker, registration, runtime |
-| Member 2 | Event rules & evaluation | rules, dev labels, error analysis |
-| Member 3 | Anticipation, website & demo | Part B, website, demo, EDA |
+Team **IntDev**
+
+| Member | Links |
+|---|---|
+| Parpiyev Baxtiyorjon | [github.com/bakhti69](https://github.com/bakhti69) |
 
 ## Limitations
 

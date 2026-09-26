@@ -25,9 +25,9 @@
   (S.members || []).forEach((m) => {
     const links = [["GitHub", m.github], ["LinkedIn", m.linkedin], ["Portfolio", m.portfolio]]
       .filter(([, u]) => u).map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${k}</a>`).join(" · ");
-    team.append(el("div", { class: "card" }, `<h3>${esc(m.name)}</h3><div class="muted small">${esc(m.role)}</div>
-      <p class="small">${esc(m.did)}</p><p class="small"><b>Proud of:</b> ${esc(m.proud || "")}</p>
-      <div class="small">${links || '<span class="muted">links: add in config.js</span>'}</div>`));
+    team.append(el("div", { class: "card" }, `<h3>${esc(m.name)}</h3>${m.role ? `<div class="muted small">${esc(m.role)}</div>` : ""}
+      ${m.did ? `<p class="small">${esc(m.did)}</p>` : ""}${m.proud ? `<p class="small"><b>Proud of:</b> ${esc(m.proud)}</p>` : ""}
+      <div class="small">${links}</div>`));
   });
 
   /* ---------- class table ---------- */
