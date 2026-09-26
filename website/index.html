@@ -58,16 +58,16 @@
           <path d="M320 178H356M510 178H546M720 178H756" marker-end="url(#ar)"/>
           <path d="M70 86V178H166" marker-end="url(#ar)"/>
         </g>
-        <text x="70" y="55" text-anchor="middle" font-weight="600">video</text><text x="70" y="73" text-anchor="middle" font-size="11" opacity=".7">every 2nd frame</text>
+        <text x="70" y="55" text-anchor="middle" font-weight="600">video</text><text x="70" y="73" text-anchor="middle" font-size="11" opacity=".7">10–12 fps</text>
         <text x="245" y="55" text-anchor="middle" font-weight="600">YOLO11s</text><text x="245" y="73" text-anchor="middle" font-size="11" opacity=".7">road users · COCO</text>
         <text x="435" y="55" text-anchor="middle" font-weight="600">tracker</text><text x="435" y="73" text-anchor="middle" font-size="11" opacity=".7">ByteTrack-style</text>
         <text x="635" y="55" text-anchor="middle" font-weight="600">kinematics on map</text><text x="635" y="73" text-anchor="middle" font-size="11" opacity=".7">speed in body-lengths/s</text>
         <text x="830" y="55" text-anchor="middle" font-weight="600">14 class rules</text><text x="830" y="73" text-anchor="middle" font-size="11" opacity=".7">start/end conventions</text>
         <text x="995" y="55" text-anchor="middle" font-weight="600">segments</text><text x="995" y="73" text-anchor="middle" font-size="11" opacity=".7">merge · clip</text>
         <text x="245" y="175" text-anchor="middle" font-weight="600">scene layout</text><text x="245" y="193" text-anchor="middle" font-size="11" opacity=".7">SIFT-registered</text>
-        <text x="435" y="175" text-anchor="middle" font-weight="600">signal heads</text><text x="435" y="193" text-anchor="middle" font-size="11" opacity=".7">red / walk timeline</text>
+        <text x="435" y="175" text-anchor="middle" font-weight="600">signal heads</text><text x="435" y="193" text-anchor="middle" font-size="11" opacity=".7">red / amber / green</text>
         <text x="635" y="175" text-anchor="middle" font-weight="600">pixel cues @2 Hz</text><text x="635" y="193" text-anchor="middle" font-size="11" opacity=".7">obstacle · fire</text>
-        <text x="830" y="175" text-anchor="middle" font-weight="600">Part B: causal TTC</text><text x="830" y="193" text-anchor="middle" font-size="11" opacity=".7">risk per frame</text>
+        <text x="830" y="175" text-anchor="middle" font-weight="600">Part B: causal CPA</text><text x="830" y="193" text-anchor="middle" font-size="11" opacity=".7">risk per frame</text>
         <text x="10" y="18" font-size="12" opacity=".7">Part A (offline, whole video)</text>
         <text x="10" y="240" font-size="12" opacity=".7">Dashed: fixed configuration drawn once on a reference frame and mapped onto each video.</text>
       </g>
@@ -93,8 +93,9 @@
           threshold works near and far.</li>
         <li><b>Scene registration.</b> The framing moves between clips (up to 60 px and ~1° in our stills), so the
           map is re-registered on every video with SIFT + RANSAC.</li>
-        <li><b>Signal heads that face away.</b> The queue approaching the camera has its signal facing away; its red
-          phase is inferred from the pedestrian WALK head and from vehicles held at the stop line.</li>
+        <li><b>Only trust what is visible.</b> The queue approaching the camera has its signal facing away, and the
+          head we can see on that side is a pedestrian signal (it showed WALK while that queue was flowing), so
+          red-light is judged only where the vehicle head faces the camera.</li>
         <li><b>Stopped vs queued</b>: a stopped vehicle is one that other traffic keeps passing.</li>
       </ul>
     </div>
@@ -152,20 +153,26 @@
   <h2>Technical report</h2>
   <div class="grid g2">
     <div class="card"><h3>What we built</h3>
-      <p class="small">A detector → tracker → map → rules pipeline (Part A), a causal time-to-collision risk model
-        (Part B), and the tooling around it: scene registration, a labeling page for dev sets, annotated renders, EDA,
-        a Gradio demo and 22 unit tests with synthetic trajectories on the real layout.</p></div>
+      <p class="small">A detector → tracker → map → rules pipeline (Part A), a causal closest-point-of-approach risk
+        model (Part B), and the tooling around it: scene registration, a labeling page for dev sets, annotated
+        renders, EDA, a Gradio demo that runs on a free Colab GPU and 26 unit tests with synthetic trajectories on
+        the real layout.</p></div>
     <div class="card"><h3>What worked</h3>
       <ul class="small">
         <li>SIFT registration fits the layout on every still, including dusk frames shifted by 60 px.</li>
         <li>COCO YOLO11s finds cars, buses, pedestrians and cyclists reliably in day and dusk frames.</li>
-        <li>Reading the pedestrian head fixed the "signal faces away" problem for the queue approach.</li>
+        <li>Calibrating on a labelled sample clip raised Score A from 0.265 to 0.705 (one clip, one annotator).</li>
+        <li>Part B false alarms dropped from ~5 to ~1 per minute on the sample videos once overlapping (occluding)
+          boxes and cars passing a queue in the next lane stopped counting as collision courses.</li>
+        <li>All four sample videos run in about half the 3× time budget on a laptop CPU.</li>
         <li>Body-length-normalised speed made one set of thresholds work across the depth of the scene.</li>
       </ul></div>
     <div class="card"><h3>What did not (or is not proven)</h3>
       <ul class="small">
-        <li>Rules were tuned on synthetic trajectories and public clips, <b>not</b> on labelled sample video yet — the
-          numbers below are what we can honestly claim.</li>
+        <li>The thresholds come from one labelled 67 s clip and a detection-by-detection review of a second video
+          — a first calibration, not a validated result.</li>
+        <li>Reading the pedestrian head as the queue's signal was wrong (it showed WALK while that queue flowed);
+          red-light for the queue towards the camera is therefore not judged.</li>
         <li>Top-down footage breaks COCO detection (cars read as "cell phones").</li>
         <li>Pixel cues (obstacle, fire) needed camera-drift compensation and shape filters to stop firing on lane
           markings; smoke without flames is not detected.</li>
@@ -175,14 +182,26 @@
       </ul></div>
     <div class="card"><h3>Next</h3>
       <ul class="small">
-        <li>Label the samples with the labeling page and tune thresholds per class at IoU 0.7.</li>
+        <li>Label all four sample videos with the labeling page and tune thresholds per class at IoU 0.7.</li>
         <li>Fine-tune the detector on frames of this camera (dusk, occlusion in the queue).</li>
         <li>Learned re-scoring of accident / near-miss candidates on public crash datasets (CCD, DoTA).</li>
         <li>Calibrate the risk score on those datasets so 0.5 means "probably within 5 s".</li>
       </ul></div>
   </div>
   <h3>Honest failure cases</h3>
-  <div id="failures" class="small"><p class="pending">Listed per sample video once the dev labels exist.</p></div>
+  <div id="failures" class="small"><ul>
+    <li><b>Frame edges.</b> Boxes cut by the border slide as a vehicle enters or leaves and faked U-turns; manoeuvre
+      and conflict rules now ignore border-cut samples, which also hides real events right at the edge (the labelled
+      failure-to-yield at the bottom of the dev clip is missed).</li>
+    <li><b>Identity switches.</b> A white truck "U-turned" when the tracker swapped it with another vehicle during a
+      10 s standstill; a U-turn must now be one continuous manoeuvre.</li>
+    <li><b>Far away and small.</b> Near-misses between tiny distant road users and kerbside "stopped vehicles" on the
+      far carriageway were false; both now need a minimum size.</li>
+    <li><b>Scooters.</b> Riders whose scooter the detector missed looked like fast jaywalkers; jaywalking now needs
+      walking speed.</li>
+    <li><b>Still uncertain:</b> jaywalking and red-light boundaries (Score A 0.44 and 0.40 on the dev clip), and
+      near-miss vs hard braking in a queue.</li>
+  </ul></div>
 </section>
 
 <section id="links">

@@ -34,17 +34,17 @@
   const CLASS_RULES = [
     ["accident", "Contact after a real approach at speed (≥ 1.5 bl/s), an impact stop (speed drops to ≤ 20 % across ~1 s) or a ≥ 45° deflection, then both at rest together for ≥ 2 s. Braking into a queue does not qualify.", "first contact → both at rest / leave"],
     ["near_miss", "TTC < 1 s on a real collision course (closest point of approach ≤ 0.5 lengths, not side-by-side passing), gap 0.8–1.8 lengths without contact, emergency braking or a ≥ 60°/s swerve.", "evasive action → gap > 2.5"],
-    ["red_light", "Front of a vehicle crosses a stop line while its approach is red: vehicle head read directly (away-flow); pedestrian WALK or vehicles held at the line (flow towards camera).", "crossing → leaves junction"],
+    ["red_light", "Front of a moving vehicle crosses a stop line after ≥ 1 s of red on its own signal head, read from the pixels. Only approaches whose vehicle head faces the camera are judged (the other head is a pedestrian signal).", "crossing → leaves junction"],
     ["wrong_way", "Moving > 120° against the legal direction of its carriageway for ≥ 1.2 s and ≥ 1.5 body lengths.", "enters → returns / leaves frame"],
     ["illegal_u_turn", "Heading, counted only while moving, reverses by ≥ 150° within 20 s over a driven arc of ≥ 2.5 body lengths.", "starts turning → settles"],
-    ["stopped_vehicle", "Stationary ≥ 10 s on the carriageway while ≥ 3 moving vehicles pass it (a queue moves as a whole). Buses skipped (bus stop).", "stops → moves / leaves"],
-    ["jaywalking", "Pedestrian (not a rider or passenger) with feet on the carriageway, outside crosswalks, for ≥ 1 s.", "steps on → leaves road"],
-    ["failure_to_yield", "Vehicle footprint crosses a crosswalk at speed while a pedestrian is on it within 4 body lengths.", "enters → leaves crossing"],
+    ["stopped_vehicle", "Stationary ≥ 15 s in the junction or side road while ≥ 2 vehicles overtake it in its own direction (a signal queue is never overtaken). Buses (bus stop) and far-away kerbside parking skipped.", "stops → moves / leaves"],
+    ["jaywalking", "Pedestrian (not a rider or passenger) walking (0.4–1.6 body lengths/s) with feet on the carriageway, outside crosswalks, for ≥ 1 s.", "steps on → leaves road"],
+    ["failure_to_yield", "Vehicle footprint drives across a crosswalk (≥ 1 body length/s) while a crossing pedestrian is on it within 1.5 vehicle lengths of its path.", "enters → leaves crossing"],
     ["illegal_turn", "Movement between zones listed as prohibited in the scene config (none confirmed yet → never predicted).", "starts turning → completes"],
     ["solid_line_crossing", "Ground point changes side of a solid lane divider by ≥ 30 % of the box width within 4 s.", "wheel on line → fully across"],
     ["stop_line", "Stands still past the stop line (inside the box before the junction) for ≥ 2 s during red.", "stops → moves (green)"],
-    ["congestion", "Per direction: ≥ 5–6 vehicles, ≥ 80 % crawling, sustained (20 s away-flow, 75 s for the signal queue).", "queue stops → clears"],
-    ["road_obstacle", "Animal on the road, or a compact new object that appears, stays ≥ 5 s and is not a detected road user.", "appears → removed"],
+    ["congestion", "Per direction: the whole flow at a standstill — ≥ 8 vehicles (towards the camera) or ≥ 5 (away), ≥ 75–80 % of them crawling, for ≥ 30 s.", "queue stops → clears"],
+    ["road_obstacle", "Animal on the road, or a compact new object that appears, stays ≥ 8 s and is not a detected road user (camera drift compensated).", "appears → removed"],
     ["fire_smoke", "Flame-coloured blob at a fixed place whose area flickers (CV ≥ 0.2) for ≥ 2 s.", "first flame → clears"],
   ];
   const tbody = $("#class-table tbody");
@@ -55,7 +55,7 @@
   const FINDINGS = [
     ["Framing drifts between clips", "Registering our stills to the reference gives offsets up to (−51, +32) px and ~1° rotation, so a fixed pixel layout would miss the stop line. → SIFT registration per video."],
     ["Day and dusk", "Mean brightness ranges from ~92 (noon) to ~27 (dusk). Detection holds up at dusk; headlights make LEDs bloom, so signal pixels are counted with loose saturation/value thresholds."],
-    ["Two kinds of signal heads", "The left-pole head is a pedestrian signal (walking/standing figure); the median head is the vehicle signal for traffic leaving up the avenue. The queue approaching the camera has its signal facing away."],
+    ["Two kinds of signal heads", "The left-pole head is a pedestrian signal (walking/standing figure); the median head is the vehicle signal for traffic leaving up the avenue. The queue approaching the camera has its signal facing away, so red-light is only judged for the away-flow."],
     ["Where the queue forms", "Up to ~15 vehicles wait between the gantry and the stop line on 4–5 lanes; stopped-vehicle and congestion rules must not fire on a normal red phase."],
     ["Pedestrians everywhere", "Besides the two zebra crossings, people cut diagonally across the junction (frame 2) — real jaywalking candidates — and stand on the pink islands and the median (excluded from the carriageway)."],
     ["Perspective", "A car is ~200 px wide in the foreground and ~40 px at the far end: speeds are normalised by apparent size (body lengths/s)."],
