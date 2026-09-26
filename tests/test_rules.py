@@ -110,7 +110,7 @@ def test_failure_to_yield():
 
 
 def test_accident():
-    a = make_track(1, "car", *concat(path(3, 5, (650, 700), (930, 700)), still(5.08, 14, (930, 700))))
+    a = make_track(1, "car", *concat(path(3, 5, (520, 700), (930, 700)), still(5.08, 14, (930, 700))))
     b = make_track(2, "car", *concat(path(3, 5, (975, 900), (975, 720)), still(5.08, 14, (975, 720))))
     ev = only(detect(make_analysis([a, b])), "accident")
     assert len(ev) == 1 and 4.0 <= ev[0][0] <= 5.5 and ev[0][1] - ev[0][0] < 5
