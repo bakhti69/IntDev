@@ -17,10 +17,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
+from trafficwatch.cli import run_isolated  # noqa: E402
 from trafficwatch.config import Settings  # noqa: E402
-from trafficwatch.pipeline import analyze  # noqa: E402
 from trafficwatch.risk import CausalRisk  # noqa: E402
-from trafficwatch.rules import detect  # noqa: E402
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
@@ -46,8 +45,8 @@ RISK_HORIZON_SEC = 5.0
 
 
 def detect_events(video_path: str) -> list[list]:
-    """Part A - traffic event detection for one .mp4."""
-    return detect(analyze(video_path, Settings()))
+    """Part A - traffic event detection for one .mp4 (in a child process, see trafficwatch/cli.py)."""
+    return run_isolated(video_path)
 
 
 class RiskEstimator:
