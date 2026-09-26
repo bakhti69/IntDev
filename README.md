@@ -21,7 +21,6 @@ python evaluate.py --pred predictions.json --validate-only
 ```
 
 * Python ≥ 3.10. `run_submission.py` and `evaluate.py` are the organisers' files, unchanged.
-* Step-by-step testing guide for team members (website, Colab demo, local run): [TESTING.md](TESTING.md).
 * No internet is needed at run time (the Ultralytics hub is switched off with `YOLO_OFFLINE=1`).
 * GPU is used automatically when available. Without a GPU the settings drop to a lighter profile
   (640 px input, fewer analysed frames) — see [Runtime](#runtime).
