@@ -163,6 +163,14 @@ pedestrians too far away for failure-to-yield and scooter riders counted as jayw
 that video, and Score A 0.705 on the labelled clip. One clip and one annotator — a first calibration, not a
 validated result. Labels and review notes: `data/dev/`.
 
+## Robustness
+
+* Part A of each video runs in its own child process (`src/trafficwatch/cli.py`). A native crash in the video
+  decoder (seen once on a 4K sample: exit code 139) then costs at most that video: the child is retried once with
+  single-threaded decoding, and only if that also fails is the video reported with no events.
+* Videos are only read front to back (no seeking): the scene is registered on the median of frames from the first
+  10 s.
+
 ## Determinism
 
 Seeds are fixed (`random`, NumPy, OpenCV RANSAC, PyTorch; cuDNN deterministic, benchmark off). Two runs of the

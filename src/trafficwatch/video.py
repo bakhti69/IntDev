@@ -56,18 +56,28 @@ def iter_frames(path: str, stride: int = 1) -> Iterator[tuple[int, np.ndarray]]:
         cap.release()
 
 
-def background_frame(path: str, n_samples: int = 25) -> np.ndarray | None:
-    """Temporal median of frames spread over the video (removes moving traffic)."""
+def background_frame(path: str, n_samples: int = 11, span: float = 10.0) -> np.ndarray | None:
+    """Temporal median of frames from the first ``span`` seconds (removes moving traffic).
+
+    Reads strictly in order: random seeks in long 4K H.264/H.265 camera files are
+    slow and have crashed OpenCV's FFmpeg reader on the sample videos.
+    """
     info = video_info(path)
-    cap = cv2.VideoCapture(str(path))
+    last = max(1, min(info.n_frames, int(span * info.fps)))
+    wanted = set(np.linspace(0, last - 1, n_samples).astype(int).tolist())
     frames = []
-    total = max(1, info.n_frames)
-    for i in np.linspace(0, total - 1, n_samples).astype(int):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(i))
-        ok, f = cap.read()
-        if ok:
-            frames.append(f)
-    cap.release()
+    cap = cv2.VideoCapture(str(path))
+    try:
+        for idx in range(last):
+            if idx in wanted:
+                ok, f = cap.read()
+                if not ok:
+                    break
+                frames.append(f)
+            elif not cap.grab():
+                break
+    finally:
+        cap.release()
     if not frames:
         return None
     return np.median(np.stack(frames), axis=0).astype(np.uint8)
