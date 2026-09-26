@@ -57,12 +57,14 @@ def process(video_path: str, settings: Settings | None = None, events: list[list
     return VideoReport(an, events, risk, eda(an))
 
 
-def export_media(report: VideoReport, out_dir: Path, stem: str, width: int = 960) -> dict[str, str]:
+def export_media(report: VideoReport, out_dir: Path, stem: str, width: int = 960,
+                 video_width: int = 960, video_stride: int = 2, crf: int = 28) -> dict[str, str]:
     """Annotated video + EDA images for one video; returns file names by kind."""
     out_dir.mkdir(parents=True, exist_ok=True)
     an = report.analysis
     files = {"video": f"{stem}.mp4"}
-    render(an, report.events, report.risk, out_dir / files["video"], max_width=width)
+    render(an, report.events, report.risk, out_dir / files["video"],
+           max_width=video_width, out_stride=video_stride, crf=crf)
     bg = background_frame(an.video_path)
     images = {"background": bg, "scene": draw_scene(bg, an.scene), **motion_images(an, bg)}
     scale = width / bg.shape[1]
