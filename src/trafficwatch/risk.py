@@ -9,8 +9,9 @@ history from which we estimate velocity and deceleration. The score combines
 * hard braking next to another road user,
 * a vehicle driving against the flow,
 
-as 1 - prod(1 - r_i), floored by a small TTC-based baseline so that frames
-stay ranked even far below the alarm threshold,, then smoothed with a fast attack / slow release so an
+as the largest single risk (a dense queue must not add up to an alarm), floored
+by a small TTC-based baseline so that frames stay ranked even far below the
+alarm threshold, then smoothed with a fast attack / slow release so an
 alarm starts early and does not flicker. 0.5 means "paths meet within
 about a second".
 """
@@ -34,6 +35,11 @@ RELEASE_TAU = 1.5        # s, decay of the smoothed score
 PAIR_MAX_DIST = 3.0      # normalised distance
 CPA_HIT = 0.35           # closest approach (body lengths) that counts as a collision course
 TCPA_ALARM = 1.0         # s to the closest approach at which the score passes 0.5
+MIN_GAP = 0.6            # pairs already overlapping in the image are occlusions (one passes in front of
+                         # the other); a real collision course is flagged while there is still a gap
+STATIC_SPEED = 0.3       # body lengths / s: below this a road user counts as standing
+STATIC_HIT = 0.2         # stricter closest approach towards a standing one: in the oblique view a car
+                         # passing a queued car in the next lane seems to drive through it
 
 
 def _sigmoid(x: float) -> float:
@@ -129,7 +135,8 @@ class CausalRisk:
                 if t_cpa is None:
                     continue
                 # on a collision course: paths meet (not side by side), soon, at speed
-                course = _sigmoid((CPA_HIT - d_cpa) / 0.12)
+                hit = CPA_HIT if min(speed[i], speed[j]) >= STATIC_SPEED else STATIC_HIT
+                course = _sigmoid((hit - d_cpa) / 0.12) * _sigmoid((float(np.linalg.norm(rel)) - MIN_GAP) / 0.1)
                 r = course * _sigmoid((TCPA_ALARM - t_cpa) / 0.35) * _sigmoid((v_rel - 1.0) / 0.2)
                 braking = min(users[i].decel(), users[j].decel())
                 if braking < -1.5 and course > 0.5 and t_cpa < 2.0:
@@ -138,8 +145,7 @@ class CausalRisk:
                 # sub-alarm baseline (< 0.2) so that frames stay ranked for AP
                 soft = max(soft, 0.2 * course * _sigmoid((2.5 - t_cpa) / 0.8))
         risks += self._wrong_way(pos, vel, speed, is_vehicle)
-        combined = 1.0 - float(np.prod([1.0 - r for r in risks])) if risks else 0.0
-        return max(combined, soft)
+        return max(max(risks, default=0.0), soft)
 
     def _wrong_way(self, pos, vel, speed, is_vehicle) -> list[float]:
         out = []
