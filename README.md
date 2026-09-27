@@ -46,8 +46,12 @@ python evaluate.py --pred predictions.json --validate-only
 
 ### Reproduce `predictions_samples.json` and the website data
 
+`predictions_samples.json` was produced on a machine **without a GPU**, i.e. with the CPU profile. On a GPU
+machine the GPU profile is chosen automatically (more frames, larger input), which gives slightly different
+events; to reproduce the committed file exactly, force the CPU profile with `TW_DEVICE=cpu`:
+
 ```bash
-python run_submission.py --videos samples --out predictions_samples.json --team IntDev
+TW_DEVICE=cpu python run_submission.py --videos samples --out predictions_samples.json --team IntDev
 pip install -r requirements-tools.txt
 python tools/build_site_data.py --videos samples --pred predictions_samples.json --site website
 python tools/frame_eda.py --frames docs/frames --site website
@@ -204,7 +208,8 @@ validated result. Labels and review notes: `data/dev/`.
 ## Determinism
 
 Seeds are fixed (`random`, NumPy, OpenCV RANSAC, PyTorch; cuDNN deterministic, benchmark off). Two runs of the
-harness on the same machine gave identical events and an identical risk curve. Differences between machines can
+harness on the same machine gave identical events and an identical risk curve. The CPU and GPU profiles analyse
+different frames, so compare like with like (`TW_DEVICE=cpu` reproduces `predictions_samples.json`, see above). Differences between machines can
 come from GPU kernels (FP16 on CUDA) and from OpenCV/FFmpeg decoders.
 
 ## Development

@@ -124,7 +124,7 @@
 
   function renderResults(videos) {
     const tabs = $("#video-tabs"), panel = $("#video-panel");
-    const show = (i) => {
+    const show = (i, at) => {
       const v = videos[i], dur = v.eda.summary.duration;
       tabs.querySelectorAll("button").forEach((b, k) => b.classList.toggle("on", k === i));
       panel.innerHTML = "";
@@ -144,10 +144,36 @@
       const rkCard = el("div", { class: "card", style: "margin-top:12px" }, '<div class="small muted">Accident risk — P(accident starts within 5 s), alarm at 0.5 (causal: uses past frames only)</div>'); rkCard.append(rk);
       panel.append(box, tlCard, rkCard);
       video.addEventListener("timeupdate", () => moveCursors(panel, video.currentTime));
+      if (at) video.addEventListener("loadedmetadata", () => seek(at), { once: true });
     };
     tabs.innerHTML = "";
     videos.forEach((v, i) => { const b = el("button", {}, esc(v.name)); b.onclick = () => show(i); tabs.append(b); });
     show(0);
+    renderExamples(videos, (i, e) => { show(i, e); tabs.scrollIntoView({ behavior: "smooth", block: "start" }); });
+  }
+
+  /* one representative detection per class (the one of median length), click to watch it */
+  function renderExamples(videos, play) {
+    const byClass = {};
+    videos.forEach((v, i) => v.events.forEach((e) => (byClass[e[2]] = byClass[e[2]] || []).push([i, e])));
+    const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+    const root = $("#class-examples");
+    root.innerHTML = '<h3>Examples of each class</h3><p class="small muted">One detection per class from the sample videos (the one of median length). Click to watch it in the player above.</p>';
+    const grid = el("div", { class: "grid g3" });
+    CLASS_RULES.map((r) => r[0]).forEach((c) => {
+      const all = (byClass[c] || []).sort((a, b) => (a[1][1] - a[1][0]) - (b[1][1] - b[1][0]));
+      const card = el("div", { class: "card" }, `<span class="pill" style="background:${COLORS[c]}22;color:${COLORS[c]}">${c}</span>`);
+      if (!all.length) {
+        card.append(el("p", { class: "small muted" }, "Not detected in the sample videos."));
+      } else {
+        const [i, e] = all[Math.floor(all.length / 2)];
+        const b = el("button", { class: "btn", style: "margin-top:8px" }, `▶ ${esc(videos[i].name)} · ${mmss(e[0])}–${mmss(e[1])}`);
+        b.onclick = () => play(i, e);
+        card.append(el("p", { class: "small muted" }, `${all.length} detection${all.length > 1 ? "s" : ""} in the samples`), b);
+      }
+      grid.append(card);
+    });
+    root.append(grid);
   }
 
   function renderDashboard(videos) {
