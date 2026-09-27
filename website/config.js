@@ -9,7 +9,8 @@ window.SITE = {
   demo: "",
   members: [
     { name: "Sadullayeva Mohiraxon", role: "Team captain", did: "", github: "https://github.com/mokhiraxon555-prog", linkedin: "", portfolio: "", proud: "" },
-    { name: "Parpiyev Baxtiyorjon", role: "ML engineer — model runs, data labelling & evaluation", did: "", github: "https://github.com/bakhti69", linkedin: "", portfolio: "", proud: "" },
+    { name: "Parpiyev Baxtiyorjon", role: "ML engineer — model runs, data labelling & evaluation", did: "", github: "https://github.com/bakhti69", linkedin: "", portfolio: "",
+      proud: "QuestLearn — a gamified learning website (Hackathon 2025)", proudUrl: "https://v0-gamified-learning-website-phi.vercel.app/" },
     { name: "Xusenov Shoxrux", role: "Tester — QA of the pipeline, website & live demo", did: "", github: "https://github.com/antoniobanderes496", linkedin: "", portfolio: "", proud: "" },
   ],
 };

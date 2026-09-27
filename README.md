@@ -254,7 +254,7 @@ Team **IntDev**
 | Member | Role | Links |
 |---|---|---|
 | Sadullayeva Mohiraxon | Team captain | [github.com/mokhiraxon555-prog](https://github.com/mokhiraxon555-prog) |
-| Parpiyev Baxtiyorjon | ML engineer — model runs, data labelling & evaluation | [github.com/bakhti69](https://github.com/bakhti69) |
+| Parpiyev Baxtiyorjon | ML engineer — model runs, data labelling & evaluation | [github.com/bakhti69](https://github.com/bakhti69) · previous project: [QuestLearn](https://v0-gamified-learning-website-phi.vercel.app/) (gamified learning website, Hackathon 2025) |
 | Xusenov Shoxrux | Tester — QA of the pipeline, website & live demo | [github.com/antoniobanderes496](https://github.com/antoniobanderes496) |
 
 ## Limitations

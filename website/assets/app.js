@@ -26,7 +26,7 @@
     const links = [["GitHub", m.github], ["LinkedIn", m.linkedin], ["Portfolio", m.portfolio]]
       .filter(([, u]) => u).map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${k}</a>`).join(" · ");
     team.append(el("div", { class: "card" }, `<h3>${esc(m.name)}</h3>${m.role ? `<div class="muted small">${esc(m.role)}</div>` : ""}
-      ${m.did ? `<p class="small">${esc(m.did)}</p>` : ""}${m.proud ? `<p class="small"><b>Proud of:</b> ${esc(m.proud)}</p>` : ""}
+      ${m.did ? `<p class="small">${esc(m.did)}</p>` : ""}${m.proud ? `<p class="small"><b>Proud of:</b> ${m.proudUrl ? `<a href="${esc(m.proudUrl)}" target="_blank" rel="noopener">${esc(m.proud)}</a>` : esc(m.proud)}</p>` : ""}
       <div class="small">${links}</div>`));
   });
 
