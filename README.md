@@ -249,8 +249,8 @@ Team **IntDev**
 | Member | Role | Links |
 |---|---|---|
 | Sadullayeva Mohiraxon | Team captain | [github.com/mokhiraxon555-prog](https://github.com/mokhiraxon555-prog) |
-| Parpiyev Baxtiyorjon | | [github.com/bakhti69](https://github.com/bakhti69) |
-| Xusenov Shoxrux | | [github.com/antoniobanderes496](https://github.com/antoniobanderes496) |
+| Parpiyev Baxtiyorjon | ML engineer — model runs, data labelling & evaluation | [github.com/bakhti69](https://github.com/bakhti69) |
+| Xusenov Shoxrux | Tester — QA of the pipeline, website & live demo | [github.com/antoniobanderes496](https://github.com/antoniobanderes496) |
 
 ## Limitations
 
