@@ -4,11 +4,28 @@ WIUT Hackathon 2026, Computer Vision track. Given an `.mp4` from the competition
 returns every traffic event as `[start_sec, end_sec, label]` (Part A, 14 classes) and streams a causal
 accident-risk score for every frame (Part B).
 
+**Team IntDev** · **Website (team, approach, EDA, sample results, report):** https://bakhti69.github.io/IntDev/ ·
+**Live demo:** [Open in Colab](https://colab.research.google.com/github/bakhti69/IntDev/blob/main/demo/colab.ipynb)
+(free T4 GPU; *Runtime → Run all*, then open the printed `gradio.live` link) ·
+**Predictions on the samples:** [`predictions_samples.json`](predictions_samples.json)
+
+### Results at a glance
+
+| Sample video | Length | Events | Part B alarms | Run time (laptop CPU, no GPU) |
+|---|---|---|---|---|
+| C3896 | 5:40 | 45 | 3 | 561 s = 1.65 × length |
+| C3897 | 5:18 | 45 | 4 | 475 s = 1.49 × length |
+| C3902 | 5:18 | 44 | 11 | 489 s = 1.54 × length |
+| C3905 | 2:08 | 27 | 3 | 217 s = 1.70 × length |
+
+All within the 3 × budget, format `VALID`, deterministic. On a 67 s clip labelled by us, Score A = **0.705**
+(see [Dev set](#dev-set-first-labelled-sample-clip-67-s-8-labelled-events); one clip, one annotator).
+
 ```
 video ─► YOLO11s ─► tracker ─► kinematics on the junction map ─► 14 class rules ─► segments
             ▲                      ▲            ▲
    scene layout (SIFT-registered)  signal heads   pixel cues (obstacle, fire)
-Part B: same detector + causal tracker ─► time-to-collision, hard braking, wrong way ─► risk per frame
+Part B: same detector + causal tracker ─► closest point of approach, hard braking, wrong way ─► risk per frame
 ```
 
 ## Install and run
@@ -53,7 +70,7 @@ python tools/draw_scene.py --video samples/<clip>.mp4 --out scene.jpg
 | Scene map | Carriageways, islands, crosswalks, stop lines, lane lines, lane directions, signal heads drawn once on `configs/scene_ref.jpg`, registered to each video with SIFT + RANSAC (similarity transform) | rule-based |
 | Signal state | Lit red / amber / green pixels in each signal-head box, timeline with flicker bridging and a 1 s mode filter | rule-based |
 | 14 event classes | Rules on trajectories (below) | rule-based |
-| Part B risk | Causal tracker → closest point of approach of every pair (how close and how soon their paths meet), hard braking on a collision course, wrong-way driving → `1 − Π(1 − rᵢ)`, fast attack / slow release | rule-based |
+| Part B risk | Causal tracker → closest point of approach of every pair (how close and how soon their paths meet), hard braking on a collision course, wrong-way driving → strongest single risk, fast attack / slow release | rule-based |
 
 Why rules: there are no labels for this camera, and the hidden test set contains events that are not in
 the samples. A classifier trained on the samples could not have seen them; rules written from the class
@@ -68,26 +85,27 @@ the perspective effect: the same thresholds hold in the foreground and at the fa
 |---|---|---|
 | `accident` | Contact (ground distance < 0.8 body lengths, boxes overlap) after approaching from ≥ 1.5 at ≥ 1.5 bl/s; an impact stop (speed drops to ≤ 20 % across ~1 s) or a ≥ 45° deflection; then both at rest together ≥ 2 s | first contact → both at rest |
 | `near_miss` | TTC < 1 s on a real collision course (closest point of approach ≤ 0.5 lengths, not side-by-side passing), closest gap 0.8–1.8 (no contact), emergency braking or a ≥ 60°/s swerve | evasive action → gap > 2.5 |
-| `red_light` | Front of the vehicle crosses a stop line while its approach is red (see signals below) | crossing → leaves the junction |
+| `red_light` | Front of a moving vehicle crosses a stop line after ≥ 1 s of red on its own vehicle signal head (see signals below) | crossing → leaves the junction |
 | `wrong_way` | Moving > 120° against the legal direction of its carriageway for ≥ 1.2 s and ≥ 1.5 body lengths | enters → returns / leaves frame |
 | `illegal_u_turn` | Heading (while moving ≥ 0.5 bl/s) reverses ≥ 150° within 20 s over a driven arc of ≥ 2.5 body lengths | starts turning → settles |
-| `stopped_vehicle` | Stationary ≥ 10 s on the carriageway while ≥ 3 moving vehicles pass it; buses skipped (bus stop) | stops → moves / leaves |
-| `jaywalking` | Pedestrian (not a rider/passenger) with feet on the carriageway outside crosswalks ≥ 1 s | steps on → leaves |
-| `failure_to_yield` | Vehicle footprint crosses a crosswalk at speed while a pedestrian is on it within 4 body lengths | enters → leaves crossing |
+| `stopped_vehicle` | Stationary ≥ 15 s in the junction or side road while ≥ 2 vehicles overtake it in its own direction (a signal queue is never overtaken); buses (bus stop) and small far-away vehicles skipped | stops → moves / leaves |
+| `jaywalking` | Pedestrian (not a rider/passenger) walking (0.4–1.6 bl/s) with feet on the carriageway outside crosswalks ≥ 1 s | steps on → leaves |
+| `failure_to_yield` | Vehicle footprint drives across a crosswalk (≥ 1 bl/s) while a crossing pedestrian is on it within 1.5 vehicle lengths of its path | enters → leaves crossing |
 | `illegal_turn` | Movements listed in `configs/scene.json → forbidden_movements` (empty until confirmed → never predicted) | starts → completes turn |
 | `solid_line_crossing` | Ground point changes side of a solid lane divider by ≥ 30 % of the box width within 4 s | wheel on line → fully across |
-| `stop_line` | Stands still past the stop line, before the junction, ≥ 2 s during red | stops → moves (green) |
-| `congestion` | Per direction: ≥ 5–6 vehicles, ≥ 80 % crawling, for 20 s (away flow) / 75 s (signal queue) | queue stops → clears |
-| `road_obstacle` | Animal on the road, or a compact new object that appears, stays ≥ 5 s and is not a detected road user (drift-compensated, shift-tolerant background difference) | appears → removed |
+| `stop_line` | Stands still past the stop line, before the junction, ≥ 2 s during red (signal head, or the queue held behind the line where the head faces away) | stops → moves (green) |
+| `congestion` | Per direction, the whole flow at a standstill: ≥ 8 vehicles towards the camera / ≥ 5 away, ≥ 75–80 % crawling, for ≥ 30 s | queue stops → clears |
+| `road_obstacle` | Animal on the road, or a compact new object that appears, stays ≥ 8 s and is not a detected road user (drift-compensated, shift-tolerant background difference) | appears → removed |
 | `fire_smoke` | Flame-coloured blob at a fixed place whose area flickers for ≥ 2 s | first flame → clears |
 
 Post-processing per class: bridge short gaps, drop blips, clip to the video, never overlap within a class
 (`src/trafficwatch/segments.py`, parameters in `src/trafficwatch/rules/__init__.py`).
 
 **Signals.** The vehicle head on the median faces the camera and is read directly (traffic leaving up the
-avenue). The queue approaching the camera has its head on the gantry facing away, so its red phase is inferred:
-the pedestrian head of the crosswalk in front of it shows WALK, or vehicles are held still at the stop line
-before and after the moment in question.
+avenue); `red_light` is judged only for that approach. The queue approaching the camera has its head on the gantry
+facing away, and the head visible on that side is a pedestrian signal (it showed WALK while that queue was
+flowing), so no red-light violation is claimed there; `stop_line` for that queue uses vehicles held still behind
+the line instead.
 
 ### EDA findings that shaped the solution (from `docs/frames`)
 
@@ -95,7 +113,7 @@ before and after the moment in question.
   registered per video instead of using fixed pixels.
 * Brightness ranges from ~92 (noon) to ~27 (dusk); detection holds up, LED heads flicker and wash out, hence
   loose colour thresholds plus a timeline that bridges dropouts.
-* The left-pole head is a pedestrian signal; the queue's own head faces away (see above).
+* The left-pole head is a pedestrian signal, not the queue's signal; the queue's own head faces away (see above).
 * Pedestrians cut diagonally through the junction; people stand on the islands and the median, which are
   excluded from the carriageway.
 
@@ -125,8 +143,9 @@ Frame sampling follows the video's frame rate: Part A analyses 12.5 frames/s in 
 frames are grabbed, not decoded); Part B runs the detector at 8 frames/s and holds the score in between. Without a
 GPU: 640 px, 10 and 5 frames/s.
 
-Measured on a 4-core CPU without GPU (CPU profile), 1080p / 25 fps / 30 s clip: Part A 26.6 s + Part B 12.0 s =
-**38.6 s (1.3 × duration, budget 3 ×)**. Not yet measured on a T4.
+Measured with the official harness on the four 4K / 29.97 fps sample videos on a laptop CPU without GPU (CPU
+profile): **1.5–1.7 × the video length** (budget 3 ×), see [Results at a glance](#results-at-a-glance). Not yet
+timed on a T4 (the GPU profile analyses more frames at 960 px).
 
 ### Lessons from the first sample video (dense, jammed traffic)
 
@@ -200,8 +219,8 @@ Build a dev set with the labeling page (`website/labeler.html`, runs locally in 
 
 ## Website and live demo
 
-* Website: `website/` is static; `.github/workflows/pages.yml` publishes it with GitHub Pages. Fill in the team in
-  `website/config.js`.
+* Website: https://bakhti69.github.io/IntDev/ — `website/` is static; `.github/workflows/pages.yml` publishes it
+  with GitHub Pages. Team and settings in `website/config.js`.
 * Live demo (Gradio, `demo/app.py`):
   * Google Colab, free T4 GPU: open `demo/colab.ipynb` (the website links to it) and *Run all*; it prints a
     public `https://….gradio.live` link. Paste that link into `demo` in `website/config.js` to enable the
@@ -235,8 +254,9 @@ Team **IntDev**
 
 ## Limitations
 
-* Thresholds were tuned on synthetic trajectories and public clips, not on labelled footage from this camera —
-  label the samples and tune per class at IoU 0.7 before relying on the numbers.
+* Thresholds were calibrated on one labelled 67 s clip and a detection-by-detection review of a second video;
+  more labelled footage is needed before the per-class numbers can be trusted.
+* `red_light` is not judged for the approach whose signal faces away from the camera.
 * `illegal_turn` is never predicted until the prohibited movements of the junction are confirmed (a predicted
   class that never occurs costs a full class in the macro F1).
 * Smoke without visible flames is not detected. Near-miss vs. ordinary hard braking is the least certain boundary.
